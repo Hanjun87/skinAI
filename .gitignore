@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+.android-sdk/
+.jdk17/
+.jdk21/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+.cmdline-tools.zip

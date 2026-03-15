@@ -4,22 +4,22 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Camera, 
-  Image as ImageIcon, 
-  History, 
-  BookOpen, 
-  User, 
-  Search, 
-  Settings, 
-  ChevronRight, 
-  Info, 
-  MessageSquare, 
-  Calendar, 
-  FileText, 
-  ArrowLeft, 
-  Flashlight, 
-  CheckCircle2, 
+import {
+  Camera,
+  Image as ImageIcon,
+  History,
+  BookOpen,
+  User,
+  Search,
+  Settings,
+  ChevronRight,
+  Info,
+  MessageSquare,
+  Calendar,
+  FileText,
+  ArrowLeft,
+  Flashlight,
+  CheckCircle2,
   AlertCircle,
   Sun,
   Shield,
@@ -35,15 +35,13 @@ import {
   Frown,
   Meh,
   Activity,
-  TrendingUp,
   BarChart3,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
 
 // --- Types ---
 
-type Page = 'home' | 'camera' | 'analysis' | 'result' | 'records' | 'record_detail' | 'diary' | 'diary_detail' | 'profile' | 'consultations' | 'appointments' | 'settings' | 'about';
+type Page = 'home' | 'camera' | 'analysis' | 'result' | 'records' | 'record_detail' | 'diary' | 'diary_detail' | 'profile' | 'consultations' | 'appointments' | 'settings' | 'about' | 'admin_ai';
 
 interface Record {
   id: string;
@@ -66,43 +64,12 @@ interface AnalysisResult {
   userImage: string;
 }
 
-// --- Mock Data ---
-
-const MOCK_RECORDS: Record[] = [
-  { 
-    id: '1', 
-    title: '过敏性皮炎', 
-    date: '2023年10月24日 · 下午 2:30', 
-    status: '恢复中', 
-    image: 'https://picsum.photos/seed/skin1/200/200',
-    probability: 92,
-    description: '过敏性皮炎是由过敏原引起的皮肤炎症反应。常见症状包括红肿、瘙痒和皮疹。建议远离过敏原并保持皮肤清洁。',
-    precautions: ['避免接触已知过敏原', '使用温和的护肤品', '遵医嘱使用抗过敏药物'],
-    typicalImage: 'https://picsum.photos/seed/dermatitis/400/400'
-  },
-  { 
-    id: '2', 
-    title: '轻微擦伤', 
-    date: '2023年10月18日 · 上午 10:15', 
-    status: '待复查', 
-    image: 'https://picsum.photos/seed/skin2/200/200',
-    probability: 98,
-    description: '皮肤表层受损，伴有少量渗血或红肿。属于浅表性损伤，通常可自行愈合。',
-    precautions: ['保持伤口清洁干燥', '定期消毒', '避免二次摩擦'],
-    typicalImage: 'https://picsum.photos/seed/abrasion/400/400'
-  },
-  { 
-    id: '3', 
-    title: '慢性湿疹', 
-    date: '2023年09月05日 · 下午 4:50', 
-    status: '已结束', 
-    image: 'https://picsum.photos/seed/skin3/200/200',
-    probability: 88,
-    description: '湿疹是由多种内外因素引起的瘙痒剧烈的一种皮肤炎症反应。慢性期表现为皮肤肥厚、浸润。',
-    precautions: ['加强皮肤保湿', '避免辛辣刺激食物', '穿着纯棉透气衣物'],
-    typicalImage: 'https://picsum.photos/seed/eczema/400/400'
-  },
-];
+interface AdminAnalyzeResult {
+  diagnosis: string;
+  probability: number;
+  description: string;
+  precautions: string[];
+}
 
 // --- Components ---
 
@@ -120,11 +87,10 @@ const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavigate: (
         <button
           key={item.id}
           onClick={() => onNavigate(item.id)}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            (activePage === item.id || 
-             (item.id === 'profile' && ['consultations', 'appointments', 'settings', 'about'].includes(activePage))) 
+          className={`flex flex-col items-center gap-1 transition-colors ${(activePage === item.id ||
+            (item.id === 'profile' && ['consultations', 'appointments', 'settings', 'about', 'admin_ai'].includes(activePage)))
             ? 'text-blue-500' : 'text-gray-400'
-          }`}
+            }`}
         >
           {item.icon}
           <span className="text-[10px] font-bold">{item.label}</span>
@@ -137,6 +103,8 @@ const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavigate: (
 // --- Main App ---
 
 export default function App() {
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+  const buildApiUrl = (path: string) => `${apiBaseUrl}${path}`;
   const [currentPage, _setCurrentPage] = useState<Page>('home');
   const [direction, setDirection] = useState(0); // 1: forward/right, -1: back/left
 
@@ -144,7 +112,7 @@ export default function App() {
     const levels: { [key in Page]: number } = {
       home: 0, records: 0, diary: 0, profile: 0,
       camera: 1, analysis: 1, result: 1, record_detail: 1, diary_detail: 1,
-      consultations: 1, appointments: 1, settings: 1, about: 1
+      consultations: 1, appointments: 1, settings: 1, about: 1, admin_ai: 1
     };
     const tabs: Page[] = ['home', 'records', 'diary', 'profile'];
 
@@ -168,10 +136,11 @@ export default function App() {
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [records, setRecords] = useState<Record[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<Record | null>(null);
   const [selectedDiaryRecord, setSelectedDiaryRecord] = useState<any | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+
   // Diary states
   const [uvLevel, setUvLevel] = useState(3);
   const [selectedProtections, setSelectedProtections] = useState<string[]>(['防晒霜']);
@@ -182,15 +151,25 @@ export default function App() {
   const [isSavingDiary, setIsSavingDiary] = useState(false);
   const [isAddingDiary, setIsAddingDiary] = useState(false);
 
-  const [diaryRecords, setDiaryRecords] = useState([
-    { id: 1, date: '2024-03-13', uv: 5, water: 6, sleep: '良好', mood: '开心', skin: '正常' },
-    { id: 2, date: '2024-03-12', uv: 8, water: 4, sleep: '一般', mood: '平静', skin: '泛红' },
-    { id: 3, date: '2024-03-11', uv: 2, water: 8, sleep: '良好', mood: '兴奋', skin: '白皙' },
-  ]);
+  const [diaryRecords, setDiaryRecords] = useState<any[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const adminTestFileInputRef = useRef<HTMLInputElement>(null);
+  const [adminProviders, setAdminProviders] = useState<string[]>([]);
+  const [adminProvider, setAdminProvider] = useState('local_model');
+  const [adminEndpoint, setAdminEndpoint] = useState('');
+  const [adminModel, setAdminModel] = useState('');
+  const [adminApiKey, setAdminApiKey] = useState('');
+  const [adminTimeoutMs, setAdminTimeoutMs] = useState('20000');
+  const [adminApiKeyMasked, setAdminApiKeyMasked] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [adminTestImage, setAdminTestImage] = useState<string | null>(null);
+  const [adminTesting, setAdminTesting] = useState(false);
+  const [adminTestResult, setAdminTestResult] = useState<AdminAnalyzeResult | null>(null);
 
   // --- AI Logic ---
 
@@ -212,57 +191,174 @@ export default function App() {
     setCurrentPage('analysis');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-      const prompt = "Analyze this skin image. Identify potential skin conditions. Return a JSON object with: diagnosis (string), probability (number 0-100), description (string), precautions (array of strings). Be professional and include a medical disclaimer.";
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  data: base64Image.split(',')[1],
-                  mimeType: "image/jpeg"
-                }
-              }
-            ]
-          }
-        ]
+      const response = await fetch(buildApiUrl('/api/analyze-skin'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          imageBase64: base64Image
+        })
       });
-
-      const text = response.text;
-      if (!text) throw new Error("No response from AI");
-      // Clean the text if it contains markdown code blocks
-      const jsonStr = text.replace(/```json|```/g, '').trim();
-      const data = JSON.parse(jsonStr);
+      if (!response.ok) {
+        throw new Error('识别服务不可用');
+      }
+      const data = await response.json();
 
       setAnalysisResult({
-        ...data,
+        diagnosis: data.diagnosis,
+        probability: data.probability,
+        description: data.description,
+        precautions: data.precautions,
         userImage: base64Image,
-        typicalImage: `https://picsum.photos/seed/${data.diagnosis}/400/400`
+        typicalImage: base64Image
       });
       setCurrentPage('result');
     } catch (error) {
       console.error("Analysis failed:", error);
-      // Fallback mock result if AI fails
-      setAnalysisResult({
-        diagnosis: "湿疹 (Eczema)",
-        probability: 85,
-        description: "湿疹是由多种内外因素引起的瘙痒剧烈的一种皮肤炎症反应。分急性、亚急性、慢性三期。急性期具渗出择，慢性期则浸润、肥厚。特点为多形性皮疹，对称分布，易反复发作。",
-        precautions: [
-          "保持患处清洁干燥，避免使用刺激性肥皂。",
-          "避免抓挠受损皮肤，防止感染加重。",
-          "穿着宽松纯棉衣物，减少皮肤摩擦。"
-        ],
-        userImage: base64Image,
-        typicalImage: 'https://picsum.photos/seed/eczema/400/400'
-      });
-      setCurrentPage('result');
+      setCurrentPage('home');
+      window.alert('识别失败，请稍后重试');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleSaveRecord = () => {
+    if (!analysisResult) {
+      return;
+    }
+    setIsSavingDiary(true);
+    const newRecord: Record = {
+      id: Date.now().toString(),
+      title: analysisResult.diagnosis,
+      date: new Date().toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      status: '待复查',
+      image: analysisResult.userImage,
+      probability: analysisResult.probability,
+      description: analysisResult.description,
+      precautions: analysisResult.precautions,
+      typicalImage: analysisResult.typicalImage
+    };
+    setRecords(prev => [newRecord, ...prev]);
+    setTimeout(() => {
+      setIsSavingDiary(false);
+      setCurrentPage('records');
+    }, 600);
+  };
+
+  const loadAdminConfig = async () => {
+    setAdminLoading(true);
+    setAdminMessage('');
+    try {
+      const [providersResp, configResp] = await Promise.all([
+        fetch(buildApiUrl('/api/admin/ai/providers')),
+        fetch(buildApiUrl('/api/admin/ai/config'))
+      ]);
+      if (!providersResp.ok || !configResp.ok) {
+        throw new Error('后台配置读取失败');
+      }
+      const providersData = await providersResp.json();
+      const configData = await configResp.json();
+      setAdminProviders(Array.isArray(providersData.providers) ? providersData.providers : []);
+      setAdminProvider(configData.provider || 'local_model');
+      setAdminEndpoint(configData.external?.endpoint || '');
+      setAdminModel(configData.external?.model || '');
+      setAdminTimeoutMs(String(configData.external?.timeoutMs || 20000));
+      setAdminApiKeyMasked(configData.external?.apiKeyMasked || '');
+      setAdminApiKey('');
+    } catch (error) {
+      console.error(error);
+      setAdminMessage('读取配置失败');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const saveAdminConfig = async () => {
+    setAdminSaving(true);
+    setAdminMessage('');
+    try {
+      const response = await fetch(buildApiUrl('/api/admin/ai/config'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          provider: adminProvider,
+          external: {
+            endpoint: adminEndpoint,
+            model: adminModel,
+            timeoutMs: Number(adminTimeoutMs),
+            ...(adminApiKey ? { apiKey: adminApiKey } : {})
+          }
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || '保存失败');
+      }
+      setAdminApiKeyMasked(data.external?.apiKeyMasked || '');
+      setAdminApiKey('');
+      setAdminMessage('配置已保存');
+    } catch (error) {
+      setAdminMessage(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setAdminSaving(false);
+    }
+  };
+
+  const handleAdminTestFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setAdminTestImage(dataUrl);
+      setAdminTestResult(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const runAdminAnalyze = async () => {
+    if (!adminTestImage) {
+      setAdminMessage('请先上传测试图片');
+      return;
+    }
+    setAdminTesting(true);
+    setAdminMessage('');
+    try {
+      const response = await fetch(buildApiUrl('/api/admin/ai/analyze'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          imageBase64: adminTestImage,
+          provider: adminProvider
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || '测试识别失败');
+      }
+      setAdminTestResult({
+        diagnosis: data.diagnosis,
+        probability: data.probability,
+        description: data.description,
+        precautions: data.precautions
+      });
+    } catch (error) {
+      setAdminMessage(error instanceof Error ? error.message : '测试识别失败');
+    } finally {
+      setAdminTesting(false);
     }
   };
 
@@ -310,6 +406,12 @@ export default function App() {
     return () => stopCamera();
   }, [currentPage]);
 
+  useEffect(() => {
+    if (currentPage === 'admin_ai') {
+      loadAdminConfig();
+    }
+  }, [currentPage]);
+
   // --- Render Helpers ---
 
   const renderHome = () => (
@@ -327,12 +429,12 @@ export default function App() {
 
       <main className="flex-grow flex flex-col items-center justify-center px-6 text-center">
         <div className="relative mb-12">
-          <motion.div 
+          <motion.div
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ repeat: Infinity, duration: 2 }}
             className="absolute inset-0 bg-blue-500 rounded-full opacity-20"
           />
-          <button 
+          <button
             onClick={() => setCurrentPage('camera')}
             className="relative z-10 w-48 h-48 bg-blue-500 rounded-full flex flex-col items-center justify-center shadow-2xl shadow-blue-300 active:scale-95 transition-transform"
           >
@@ -367,7 +469,7 @@ export default function App() {
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-2xl" />
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-2xl" />
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-2xl" />
-            <motion.div 
+            <motion.div
               animate={{ top: ['0%', '100%', '0%'] }}
               transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
               className="absolute left-0 right-0 h-0.5 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"
@@ -379,7 +481,7 @@ export default function App() {
       <div className="bg-white p-8 pb-12 rounded-t-[40px] flex flex-col items-center">
         <p className="text-gray-500 text-sm mb-8">请将镜头对准，并保持光线充足</p>
         <div className="flex items-center justify-between w-full max-w-xs">
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
           >
@@ -389,7 +491,7 @@ export default function App() {
             <span className="text-[10px] text-gray-400">相册</span>
           </button>
 
-          <button 
+          <button
             onClick={takePhoto}
             className="w-20 h-20 rounded-full border-4 border-blue-100 p-1 active:scale-90 transition-transform"
           >
@@ -402,12 +504,12 @@ export default function App() {
         </div>
       </div>
       <canvas ref={canvasRef} className="hidden" />
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileSelect} 
-        accept="image/*" 
-        className="hidden" 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept="image/*"
+        className="hidden"
       />
     </div>
   );
@@ -421,7 +523,7 @@ export default function App() {
         <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-blue-500" />
         <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-blue-500" />
         <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-blue-500" />
-        <motion.div 
+        <motion.div
           animate={{ top: ['0%', '100%', '0%'] }}
           transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
           className="absolute left-0 right-0 h-1 bg-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.8)]"
@@ -433,9 +535,9 @@ export default function App() {
         <h2 className="text-xl font-bold text-gray-900">AI 正在深度分析中...</h2>
       </div>
       <p className="text-gray-400 text-sm mb-8">正在识别皮损特征、颜色分布及边缘轮廓，请稍候</p>
-      
+
       <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-        <motion.div 
+        <motion.div
           initial={{ width: '0%' }}
           animate={{ width: '100%' }}
           transition={{ duration: 5 }}
@@ -527,19 +629,13 @@ export default function App() {
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 bg-white border-t border-gray-100 flex gap-4 z-20">
-        <button 
-          onClick={() => {
-            setIsSavingDiary(true);
-            setTimeout(() => {
-              setIsSavingDiary(false);
-              setCurrentPage('records');
-            }, 1000);
-          }}
+        <button
+          onClick={handleSaveRecord}
           className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl active:scale-95 transition-transform flex items-center justify-center gap-2"
         >
           {isSavingDiary ? <Loader2 className="animate-spin" size={20} /> : '保存记录'}
         </button>
-        <button 
+        <button
           onClick={() => setCurrentPage('consultations')}
           className="flex-1 py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-transform"
         >
@@ -557,71 +653,40 @@ export default function App() {
       </header>
 
       <div className="p-4">
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">最近记录</h3>
-            <div className="space-y-3">
-              {MOCK_RECORDS.slice(0, 2).map(record => (
-                <button 
-                  key={record.id} 
-                  onClick={() => {
-                    setSelectedRecord(record);
-                    setCurrentPage('record_detail');
-                  }}
-                  className="w-full bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer text-left"
-                >
-                  <img src={record.image} alt={record.title} className="w-16 h-16 rounded-xl object-cover" />
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-bold text-gray-900">{record.title}</h4>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                        record.status === '恢复中' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'
-                      }`}>
-                        {record.status}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mb-2">{record.date}</p>
-                    <div className="text-blue-500 text-[10px] font-bold flex items-center gap-1">
-                      <Scan size={12} /> 查看报告
-                    </div>
-                  </div>
-                  <ChevronRight size={20} className="text-gray-200" />
-                </button>
-              ))}
-            </div>
+        {records.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-dashed border-gray-200 py-16 px-8 text-center">
+            <p className="text-gray-500 font-bold mb-2">暂无识别记录</p>
+            <p className="text-xs text-gray-400">完成一次拍照识别并保存后，会在这里显示</p>
           </div>
-
-          <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">更早记录</h3>
-            <div className="space-y-3">
-              {MOCK_RECORDS.slice(2).map(record => (
-                <button 
-                  key={record.id} 
-                  onClick={() => {
-                    setSelectedRecord(record);
-                    setCurrentPage('record_detail');
-                  }}
-                  className="w-full bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer text-left"
-                >
-                  <img src={record.image} alt={record.title} className="w-16 h-16 rounded-xl object-cover" />
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-bold text-gray-900">{record.title}</h4>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-400">
-                        {record.status}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mb-2">{record.date}</p>
-                    <div className="text-blue-500 text-[10px] font-bold flex items-center gap-1">
-                      <Scan size={12} /> 查看报告
-                    </div>
+        ) : (
+          <div className="space-y-3">
+            {records.map(record => (
+              <button
+                key={record.id}
+                onClick={() => {
+                  setSelectedRecord(record);
+                  setCurrentPage('record_detail');
+                }}
+                className="w-full bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer text-left"
+              >
+                <img src={record.image} alt={record.title} className="w-16 h-16 rounded-xl object-cover" />
+                <div className="flex-grow">
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="font-bold text-gray-900">{record.title}</h4>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-50 text-blue-500">
+                      {record.status}
+                    </span>
                   </div>
-                  <ChevronRight size={20} className="text-gray-200" />
-                </button>
-              ))}
-            </div>
+                  <p className="text-[10px] text-gray-400 mb-2">{record.date}</p>
+                  <div className="text-blue-500 text-[10px] font-bold flex items-center gap-1">
+                    <Scan size={12} /> 查看报告
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-gray-200" />
+              </button>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -645,10 +710,9 @@ export default function App() {
         <p className="text-gray-400 text-xs mb-1 uppercase tracking-widest font-bold">Health Record ID: {selectedRecord?.id}008273</p>
         <h1 className="text-3xl font-black text-gray-900 mb-2">{selectedRecord?.title}</h1>
         <div className="flex justify-center items-center gap-3">
-          <span className={`text-xs px-3 py-1 rounded-full font-bold ${
-            selectedRecord?.status === '恢复中' ? 'bg-emerald-100 text-emerald-600' : 
+          <span className={`text-xs px-3 py-1 rounded-full font-bold ${selectedRecord?.status === '恢复中' ? 'bg-emerald-100 text-emerald-600' :
             selectedRecord?.status === '待复查' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-          }`}>
+            }`}>
             {selectedRecord?.status}
           </span>
           <span className="text-gray-300">|</span>
@@ -730,7 +794,7 @@ export default function App() {
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 bg-white/80 backdrop-blur-lg border-t border-gray-100 flex gap-4 z-20">
-        <button 
+        <button
           onClick={() => {
             setIsSavingDiary(true);
             setTimeout(() => {
@@ -742,7 +806,7 @@ export default function App() {
         >
           {isSavingDiary ? <Loader2 className="animate-spin" size={20} /> : '保存记录'}
         </button>
-        <button 
+        <button
           onClick={() => setCurrentPage('consultations')}
           className="flex-1 py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-transform"
         >
@@ -761,7 +825,7 @@ export default function App() {
     };
 
     const toggleProtection = (name: string) => {
-      setSelectedProtections(prev => 
+      setSelectedProtections(prev =>
         prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
       );
     };
@@ -792,6 +856,13 @@ export default function App() {
 
     const uvColorHex = getUvColor(uvLevel);
     const uvTextClass = uvLevel > 6 ? 'text-red-500' : 'text-orange-400';
+    const weeklyRecords = diaryRecords.slice(0, 7);
+    const averageWater = weeklyRecords.length > 0
+      ? (weeklyRecords.reduce((sum, record) => sum + Number(record.water || 0), 0) / weeklyRecords.length).toFixed(1)
+      : '--';
+    const averageUv = weeklyRecords.length > 0
+      ? (weeklyRecords.reduce((sum, record) => sum + Number(record.uv || 0), 0) / weeklyRecords.length).toFixed(1)
+      : '--';
 
     // Calculate completion percentage
     const completionPercentage = [
@@ -806,7 +877,7 @@ export default function App() {
     return (
       <AnimatePresence mode="wait">
         {!isAddingDiary ? (
-          <motion.div 
+          <motion.div
             key="diary-list"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -820,7 +891,7 @@ export default function App() {
                   <p className="text-blue-500 font-bold text-sm tracking-wider uppercase mb-1">Skin Diary</p>
                   <h1 className="text-2xl font-bold text-gray-900">皮肤健康日记</h1>
                 </div>
-                <motion.button 
+                <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsAddingDiary(true)}
@@ -847,12 +918,11 @@ export default function App() {
                       <span className="text-xs font-bold text-gray-400">平均饮水</span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-gray-900">6.4</span>
+                      <span className="text-2xl font-black text-gray-900">{averageWater}</span>
                       <span className="text-xs font-bold text-gray-400">杯/日</span>
                     </div>
-                    <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-emerald-500">
-                      <TrendingUp size={12} />
-                      <span>较上周 +12%</span>
+                    <div className="mt-3 text-[10px] font-bold text-gray-400">
+                      <span>{weeklyRecords.length > 0 ? `基于最近 ${weeklyRecords.length} 条记录` : '暂无数据'}</span>
                     </div>
                   </div>
                   <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
@@ -863,14 +933,27 @@ export default function App() {
                       <span className="text-xs font-bold text-gray-400">UV 暴露</span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-gray-900">4.2</span>
+                      <span className="text-2xl font-black text-gray-900">{averageUv}</span>
                       <span className="text-xs font-bold text-gray-400">指数</span>
                     </div>
-                    <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-red-500">
-                      <TrendingUp size={12} className="rotate-180" />
-                      <span>较上周 -5%</span>
+                    <div className="mt-3 text-[10px] font-bold text-gray-400">
+                      <span>{weeklyRecords.length > 0 ? `基于最近 ${weeklyRecords.length} 条记录` : '暂无数据'}</span>
                     </div>
                   </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar size={20} className="text-violet-500" />
+                  <h2 className="font-bold text-gray-700">健康周报</h2>
+                </div>
+                <div className="bg-white rounded-3xl p-5 border border-dashed border-violet-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-gray-900">周报功能开发中</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-500">敬请期待</span>
+                  </div>
+                  <p className="text-xs text-gray-400">后续将在日记页查看本周趋势、异常提醒和护理建议。</p>
                 </div>
               </section>
 
@@ -885,8 +968,8 @@ export default function App() {
                 </div>
                 <div className="space-y-4">
                   {diaryRecords.map((record) => (
-                    <div 
-                      key={record.id} 
+                    <div
+                      key={record.id}
                       onClick={() => {
                         setSelectedDiaryRecord(record);
                         setCurrentPage('diary_detail');
@@ -894,9 +977,8 @@ export default function App() {
                       className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                          record.skin === '正常' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'
-                        }`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${record.skin === '正常' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'
+                          }`}>
                           {record.skin === '正常' ? <Smile size={24} /> : <AlertCircle size={24} />}
                         </div>
                         <div>
@@ -921,7 +1003,7 @@ export default function App() {
             </div>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="diary-add"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -931,7 +1013,7 @@ export default function App() {
           >
             <header className="pt-12 px-6 pb-6 bg-white shadow-sm">
               <div className="flex items-center gap-4 mb-4">
-                <button 
+                <button
                   onClick={() => setIsAddingDiary(false)}
                   className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 active:scale-95"
                 >
@@ -942,7 +1024,7 @@ export default function App() {
                   <h1 className="text-2xl font-bold text-gray-900">记录今日状态</h1>
                 </div>
               </div>
-              
+
               {/* Diary Completion Progress Bar */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -950,7 +1032,7 @@ export default function App() {
                   <span>{Math.round(completionPercentage)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <motion.div 
+                  <motion.div
                     className="h-full bg-gradient-to-r from-blue-400 to-indigo-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${completionPercentage}%` }}
@@ -970,7 +1052,7 @@ export default function App() {
                 <div className="bg-white rounded-3xl p-8 border border-gray-100 flex flex-col items-center shadow-sm relative overflow-hidden">
                   {/* Background Decorative Gradient */}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50" />
-                  
+
                   <div className="relative w-56 h-56 flex items-center justify-center">
                     {/* SVG Circular Progress Bar */}
                     <svg className="w-full h-full transform -rotate-90">
@@ -1003,7 +1085,7 @@ export default function App() {
                         </linearGradient>
                       </defs>
                     </svg>
-                    
+
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <motion.div
                         animate={{ scale: [1, 1.1, 1] }}
@@ -1020,20 +1102,20 @@ export default function App() {
                   {/* Linear Progress Bar for UV */}
                   <div className="w-full mt-10 space-y-3">
                     <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
-                      <motion.div 
+                      <motion.div
                         className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600"
                         initial={{ width: 0 }}
                         animate={{ width: `${uvLevel * 10}%` }}
                         transition={{ type: 'spring', stiffness: 50 }}
                       />
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="10" 
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
                       value={uvLevel}
                       onChange={(e) => setUvLevel(parseInt(e.target.value))}
-                      className="w-full opacity-0 absolute h-3 cursor-pointer z-10" 
+                      className="w-full opacity-0 absolute h-3 cursor-pointer z-10"
                     />
                     <div className="w-full flex justify-between px-1 text-[10px] text-gray-400 font-black uppercase tracking-widest">
                       <span className={uvLevel <= 2 ? 'text-yellow-500' : ''}>弱</span>
@@ -1060,14 +1142,13 @@ export default function App() {
                   ].map((item) => {
                     const isActive = selectedProtections.includes(item.name);
                     return (
-                      <button 
+                      <button
                         key={item.name}
                         onClick={() => toggleProtection(item.name)}
-                        className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all duration-300 border-2 ${
-                          isActive 
-                            ? 'bg-blue-50 border-blue-500 shadow-md shadow-blue-100' 
-                            : 'bg-white border-gray-100 hover:border-blue-200'
-                        }`}
+                        className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all duration-300 border-2 ${isActive
+                          ? 'bg-blue-50 border-blue-500 shadow-md shadow-blue-100'
+                          : 'bg-white border-gray-100 hover:border-blue-200'
+                          }`}
                       >
                         <item.icon size={32} className={isActive ? 'text-blue-500' : 'text-gray-300'} />
                         <span className={`text-xs font-bold ${isActive ? 'text-blue-500' : 'text-gray-400'}`}>{item.name}</span>
@@ -1088,11 +1169,10 @@ export default function App() {
                     <button
                       key={feeling}
                       onClick={() => setSkinFeeling(feeling)}
-                      className={`px-6 py-3 rounded-full text-sm font-bold transition-all ${
-                        skinFeeling === feeling
-                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
-                          : 'bg-white text-gray-400 border border-gray-100'
-                      }`}
+                      className={`px-6 py-3 rounded-full text-sm font-bold transition-all ${skinFeeling === feeling
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
+                        : 'bg-white text-gray-400 border border-gray-100'
+                        }`}
                     >
                       {feeling}
                     </button>
@@ -1118,9 +1198,9 @@ export default function App() {
                   <div className="h-24 w-full rounded-2xl bg-gray-50 relative overflow-hidden shadow-inner border border-gray-100">
                     {/* Background Full Gradient (Dimmed) */}
                     <div className="absolute inset-0 bg-gradient-to-r from-[#FFDBAC] via-[#E0AC69] to-[#8D5524] opacity-20" />
-                    
+
                     {/* Active Gradient Progress */}
-                    <motion.div 
+                    <motion.div
                       className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-[#FFDBAC] via-[#E0AC69] to-[#8D5524] z-0"
                       initial={{ width: 0 }}
                       animate={{ width: `${skinTone}%` }}
@@ -1129,7 +1209,7 @@ export default function App() {
                     />
 
                     {/* Visual Indicator */}
-                    <motion.div 
+                    <motion.div
                       className="absolute top-0 bottom-0 w-2 bg-white shadow-[0_0_15px_rgba(0,0,0,0.4)] z-10 pointer-events-none"
                       animate={{ left: `${skinTone}%` }}
                       transition={{ type: 'spring', damping: 20 }}
@@ -1138,12 +1218,12 @@ export default function App() {
                         <div className="w-2 h-2 bg-amber-600 rounded-full" />
                       </div>
                     </motion.div>
-                    
+
                     {/* The actual slider - invisible but covers the whole area */}
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="100" 
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
                       value={skinTone}
                       onChange={(e) => setSkinTone(parseInt(e.target.value))}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30"
@@ -1183,9 +1263,8 @@ export default function App() {
                         <button
                           key={num}
                           onClick={() => setWaterIntake(num)}
-                          className={`w-8 h-10 rounded-lg flex items-center justify-center transition-all ${
-                            waterIntake >= num ? 'bg-blue-500 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-300'
-                          }`}
+                          className={`w-8 h-10 rounded-lg flex items-center justify-center transition-all ${waterIntake >= num ? 'bg-blue-500 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-300'
+                            }`}
                         >
                           <Droplets size={16} />
                         </button>
@@ -1196,10 +1275,10 @@ export default function App() {
                       <span className="text-xs font-bold text-gray-300 ml-1">/ 8</span>
                     </div>
                   </div>
-                  
+
                   {/* Gradient Progress Bar for Water */}
                   <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
-                    <motion.div 
+                    <motion.div
                       className="h-full rounded-full bg-gradient-to-r from-blue-300 via-blue-500 to-indigo-600"
                       initial={{ width: 0 }}
                       animate={{ width: `${(waterIntake / 8) * 100}%` }}
@@ -1225,31 +1304,29 @@ export default function App() {
                       <button
                         key={item.name}
                         onClick={() => setSleepQuality(item.name)}
-                        className={`p-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${
-                          sleepQuality === item.name
-                            ? `${item.bg} border-current ${item.color} shadow-lg`
-                            : 'bg-white border-gray-100 text-gray-300'
-                        }`}
+                        className={`p-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${sleepQuality === item.name
+                          ? `${item.bg} border-current ${item.color} shadow-lg`
+                          : 'bg-white border-gray-100 text-gray-300'
+                          }`}
                       >
                         <item.icon size={32} />
                         <span className="text-xs font-bold">{item.name}</span>
                       </button>
                     ))}
                   </div>
-                  
+
                   {/* Gradient Progress Bar for Sleep */}
                   {sleepQuality && (
                     <div className="space-y-2">
                       <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden">
-                        <motion.div 
-                          className={`h-full bg-gradient-to-r ${
-                            sleepQuality === '糟糕' ? 'from-red-400 to-red-600' :
+                        <motion.div
+                          className={`h-full bg-gradient-to-r ${sleepQuality === '糟糕' ? 'from-red-400 to-red-600' :
                             sleepQuality === '一般' ? 'from-orange-400 to-orange-600' :
-                            'from-emerald-400 to-emerald-600'
-                          }`}
+                              'from-emerald-400 to-emerald-600'
+                            }`}
                           initial={{ width: 0 }}
-                          animate={{ 
-                            width: sleepQuality === '糟糕' ? '33%' : sleepQuality === '一般' ? '66%' : '100%' 
+                          animate={{
+                            width: sleepQuality === '糟糕' ? '33%' : sleepQuality === '一般' ? '66%' : '100%'
                           }}
                           transition={{ type: 'spring', stiffness: 50 }}
                         />
@@ -1259,14 +1336,13 @@ export default function App() {
                 </div>
               </section>
 
-              <button 
+              <button
                 onClick={handleSaveDiary}
                 disabled={isSavingDiary}
-                className={`w-full py-4 font-bold rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
-                  isSavingDiary 
-                    ? 'bg-emerald-500 text-white shadow-emerald-200' 
-                    : 'bg-blue-500 text-white shadow-blue-200 active:scale-95'
-                }`}
+                className={`w-full py-4 font-bold rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${isSavingDiary
+                  ? 'bg-emerald-500 text-white shadow-emerald-200'
+                  : 'bg-blue-500 text-white shadow-blue-200 active:scale-95'
+                  }`}
               >
                 {isSavingDiary ? (
                   <>
@@ -1291,7 +1367,7 @@ export default function App() {
       <div className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto">
         <header className="pt-12 px-6 pb-6 bg-white shadow-sm">
           <div className="flex items-center gap-4 mb-4">
-            <button 
+            <button
               onClick={() => setCurrentPage('diary')}
               className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 active:scale-95"
             >
@@ -1306,12 +1382,10 @@ export default function App() {
 
         <div className="px-6 space-y-6 mt-6">
           {/* Skin Status Card */}
-          <div className={`p-6 rounded-3xl border shadow-sm flex items-center gap-4 ${
-            selectedDiaryRecord.skin === '正常' ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'
-          }`}>
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-              selectedDiaryRecord.skin === '正常' ? 'bg-white text-emerald-500' : 'bg-white text-orange-500'
+          <div className={`p-6 rounded-3xl border shadow-sm flex items-center gap-4 ${selectedDiaryRecord.skin === '正常' ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'
             }`}>
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${selectedDiaryRecord.skin === '正常' ? 'bg-white text-emerald-500' : 'bg-white text-orange-500'
+              }`}>
               {selectedDiaryRecord.skin === '正常' ? <Smile size={32} /> : <AlertCircle size={32} />}
             </div>
             <div>
@@ -1438,7 +1512,7 @@ export default function App() {
           <section>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">常用功能</h3>
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <button 
+              <button
                 onClick={() => setCurrentPage('consultations')}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
               >
@@ -1451,7 +1525,7 @@ export default function App() {
                 <ChevronRight size={20} className="text-gray-200" />
               </button>
               <div className="h-px bg-gray-50 mx-4" />
-              <button 
+              <button
                 onClick={() => setCurrentPage('appointments')}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
               >
@@ -1463,26 +1537,26 @@ export default function App() {
                 </div>
                 <ChevronRight size={20} className="text-gray-200" />
               </button>
-              <div className="h-px bg-gray-50 mx-4" />
-              <button 
-                onClick={() => setCurrentPage('diary')}
-                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                    <FileText size={20} />
-                  </div>
-                  <span className="font-bold text-gray-700">健康日报</span>
-                </div>
-                <ChevronRight size={20} className="text-gray-200" />
-              </button>
             </div>
           </section>
 
           <section>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">系统服务</h3>
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <button 
+              <button
+                onClick={() => setCurrentPage('admin_ai')}
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                    <Shield size={20} />
+                  </div>
+                  <span className="font-bold text-gray-700">AI后台管理</span>
+                </div>
+                <ChevronRight size={20} className="text-gray-200" />
+              </button>
+              <div className="h-px bg-gray-50 mx-4" />
+              <button
                 onClick={() => setCurrentPage('settings')}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
               >
@@ -1495,7 +1569,7 @@ export default function App() {
                 <ChevronRight size={20} className="text-gray-200" />
               </button>
               <div className="h-px bg-gray-50 mx-4" />
-              <button 
+              <button
                 onClick={() => setCurrentPage('about')}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
               >
@@ -1510,6 +1584,114 @@ export default function App() {
             </div>
           </section>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderAdminAI = () => (
+    <div className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto">
+      <header className="p-6 flex items-center justify-between bg-white sticky top-0 z-10 border-b border-gray-100">
+        <button onClick={() => setCurrentPage('profile')} className="text-gray-400 active:scale-90 transition-transform">
+          <ArrowLeft size={24} />
+        </button>
+        <h2 className="text-lg font-bold text-gray-900">AI后台管理</h2>
+        <button onClick={loadAdminConfig} className="text-blue-500 text-sm font-bold">{adminLoading ? '刷新中' : '刷新'}</button>
+      </header>
+
+      <div className="p-6 space-y-5">
+        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+          <h3 className="font-bold text-gray-900">AI 提供方</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {(adminProviders.length > 0 ? adminProviders : ['local_model', 'external_ai_api']).map((provider) => (
+              <button
+                key={provider}
+                onClick={() => setAdminProvider(provider)}
+                className={`py-3 rounded-2xl text-sm font-bold border transition-colors ${adminProvider === provider ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-200 text-gray-500'}`}
+              >
+                {provider}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+          <h3 className="font-bold text-gray-900">外部AI接口配置</h3>
+          <div className="space-y-3">
+            <input
+              value={adminEndpoint}
+              onChange={(e) => setAdminEndpoint(e.target.value)}
+              placeholder="Endpoint URL"
+              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
+            />
+            <input
+              value={adminModel}
+              onChange={(e) => setAdminModel(e.target.value)}
+              placeholder="Model"
+              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
+            />
+            <input
+              value={adminTimeoutMs}
+              onChange={(e) => setAdminTimeoutMs(e.target.value)}
+              placeholder="Timeout(ms)"
+              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
+            />
+            <input
+              value={adminApiKey}
+              onChange={(e) => setAdminApiKey(e.target.value)}
+              placeholder={adminApiKeyMasked ? `当前Key: ${adminApiKeyMasked}` : 'API Key'}
+              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+          <button
+            onClick={saveAdminConfig}
+            className="w-full h-11 rounded-xl bg-blue-500 text-white font-bold active:scale-95 transition-transform"
+          >
+            {adminSaving ? '保存中...' : '保存配置'}
+          </button>
+        </div>
+
+        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+          <h3 className="font-bold text-gray-900">识别接口测试</h3>
+          <div className="flex gap-3">
+            <button
+              onClick={() => adminTestFileInputRef.current?.click()}
+              className="flex-1 h-11 rounded-xl border border-gray-200 text-gray-600 font-bold active:scale-95 transition-transform"
+            >
+              选择测试图片
+            </button>
+            <button
+              onClick={runAdminAnalyze}
+              className="flex-1 h-11 rounded-xl bg-indigo-500 text-white font-bold active:scale-95 transition-transform"
+            >
+              {adminTesting ? '识别中...' : '开始识别'}
+            </button>
+          </div>
+          <input
+            type="file"
+            ref={adminTestFileInputRef}
+            onChange={handleAdminTestFileSelect}
+            accept="image/*"
+            className="hidden"
+          />
+          {adminTestImage && (
+            <div className="aspect-video bg-gray-100 rounded-2xl overflow-hidden">
+              <img src={adminTestImage} alt="test" className="w-full h-full object-cover" />
+            </div>
+          )}
+          {adminTestResult && (
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 space-y-2">
+              <p className="text-sm font-bold text-indigo-700">诊断：{adminTestResult.diagnosis}</p>
+              <p className="text-xs text-indigo-700">概率：{adminTestResult.probability}%</p>
+              <p className="text-xs text-indigo-700 leading-relaxed">{adminTestResult.description}</p>
+            </div>
+          )}
+        </div>
+
+        {adminMessage && (
+          <div className="px-4 py-3 rounded-2xl bg-blue-50 text-blue-700 text-sm font-medium">
+            {adminMessage}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1555,6 +1737,7 @@ export default function App() {
           {currentPage === 'diary' && renderDiary()}
           {currentPage === 'diary_detail' && renderDiaryDetail()}
           {currentPage === 'profile' && renderProfile()}
+          {currentPage === 'admin_ai' && renderAdminAI()}
           {currentPage === 'consultations' && renderPlaceholderPage('我的咨询', <MessageSquare size={48} />)}
           {currentPage === 'appointments' && renderPlaceholderPage('专家预约', <Calendar size={48} />)}
           {currentPage === 'settings' && renderPlaceholderPage('设置', <Settings size={48} />)}
