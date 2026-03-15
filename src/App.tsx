@@ -190,8 +190,22 @@ export default function App() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- AI Logic ---
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setCapturedImage(dataUrl);
+        analyzeSkin(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const analyzeSkin = async (base64Image: string) => {
     setIsAnalyzing(true);
@@ -310,19 +324,6 @@ export default function App() {
         <p className="text-gray-500 text-sm">关注您的皮肤健康</p>
       </header>
 
-      <section className="px-6 mb-8">
-        <div className="bg-blue-500 rounded-2xl p-4 flex items-start gap-4 text-white shadow-lg shadow-blue-200">
-          <div className="bg-white/20 p-2 rounded-lg">
-            <Info size={20} />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm mb-1">今日健康贴士</h3>
-            <p className="text-xs text-blue-50 leading-relaxed">
-              定期检查身上的痣是否有形状、边缘或颜色的突然变化，预防胜于治疗。
-            </p>
-          </div>
-        </div>
-      </section>
 
       <main className="flex-grow flex flex-col items-center justify-center px-6 text-center">
         <div className="relative mb-12">
@@ -339,11 +340,6 @@ export default function App() {
             <span className="text-white text-lg font-bold">拍照识别</span>
           </button>
         </div>
-
-        <button className="flex items-center gap-2 text-blue-500 font-medium py-3 px-8 rounded-full border border-blue-200 bg-blue-50/50 active:scale-95 transition-all">
-          <ImageIcon size={20} />
-          <span>从相册中选择</span>
-        </button>
 
         <div className="mt-8 text-xs text-gray-400">
           AI 技术仅供参考，如有不适请及时就医
@@ -383,7 +379,10 @@ export default function App() {
       <div className="bg-white p-8 pb-12 rounded-t-[40px] flex flex-col items-center">
         <p className="text-gray-500 text-sm mb-8">请将镜头对准，并保持光线充足</p>
         <div className="flex items-center justify-between w-full max-w-xs">
-          <button className="flex flex-col items-center gap-1">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+          >
             <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
               <ImageIcon size={24} />
             </div>
@@ -399,15 +398,17 @@ export default function App() {
             </div>
           </button>
 
-          <button className="flex flex-col items-center gap-1">
-            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
-              <History size={24} />
-            </div>
-            <span className="text-[10px] text-gray-400">记录</span>
-          </button>
+          <div className="w-12" /> {/* Spacer to keep camera centered */}
         </div>
       </div>
       <canvas ref={canvasRef} className="hidden" />
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileSelect} 
+        accept="image/*" 
+        className="hidden" 
+      />
     </div>
   );
 
@@ -508,7 +509,7 @@ export default function App() {
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-blue-500 rounded-full" />
-            <h3 className="font-bold text-gray-900">注意事项</h3>
+            <h3 className="font-bold text-gray-900">AI 建议</h3>
           </div>
           <ul className="space-y-4">
             {analysisResult?.precautions.map((item, i) => (
@@ -526,11 +527,23 @@ export default function App() {
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 bg-white border-t border-gray-100 flex gap-4 z-20">
-        <button className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl active:scale-95 transition-transform">
-          建议措施
+        <button 
+          onClick={() => {
+            setIsSavingDiary(true);
+            setTimeout(() => {
+              setIsSavingDiary(false);
+              setCurrentPage('records');
+            }, 1000);
+          }}
+          className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+        >
+          {isSavingDiary ? <Loader2 className="animate-spin" size={20} /> : '保存记录'}
         </button>
-        <button className="flex-1 py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-transform">
-          立即咨询医生
+        <button 
+          onClick={() => setCurrentPage('consultations')}
+          className="flex-1 py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-transform"
+        >
+          咨询医生
         </button>
       </div>
     </div>
@@ -694,7 +707,7 @@ export default function App() {
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1 h-5 bg-blue-500 rounded-full" />
-            <h3 className="font-bold text-gray-900">康复医嘱</h3>
+            <h3 className="font-bold text-gray-900">AI 建议</h3>
           </div>
           <div className="space-y-4">
             {selectedRecord?.precautions.map((item, i) => (
@@ -717,11 +730,23 @@ export default function App() {
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 bg-white/80 backdrop-blur-lg border-t border-gray-100 flex gap-4 z-20">
-        <button className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl active:scale-95 transition-transform">
-          导出报告
+        <button 
+          onClick={() => {
+            setIsSavingDiary(true);
+            setTimeout(() => {
+              setIsSavingDiary(false);
+              setCurrentPage('records');
+            }, 1000);
+          }}
+          className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+        >
+          {isSavingDiary ? <Loader2 className="animate-spin" size={20} /> : '保存记录'}
         </button>
-        <button className="flex-1 py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-transform">
-          咨询随访医生
+        <button 
+          onClick={() => setCurrentPage('consultations')}
+          className="flex-1 py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-transform"
+        >
+          咨询医生
         </button>
       </div>
     </div>
@@ -768,116 +793,6 @@ export default function App() {
     const uvColorHex = getUvColor(uvLevel);
     const uvTextClass = uvLevel > 6 ? 'text-red-500' : 'text-orange-400';
 
-    if (!isAddingDiary) {
-      return (
-        <div className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto">
-          <header className="pt-12 px-6 pb-6 bg-white shadow-sm">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-blue-500 font-bold text-sm tracking-wider uppercase mb-1">Skin Diary</p>
-                <h1 className="text-2xl font-bold text-gray-900">皮肤健康日记</h1>
-              </div>
-              <button 
-                onClick={() => setIsAddingDiary(true)}
-                className="w-12 h-12 bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-100 flex items-center justify-center active:scale-95 transition-transform"
-              >
-                <Plus size={24} />
-              </button>
-            </div>
-          </header>
-
-          <div className="px-6 space-y-8 mt-6">
-            {/* Statistics Section */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart3 size={20} className="text-indigo-500" />
-                <h2 className="font-bold text-gray-700">本周统计</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-                      <Droplets size={20} />
-                    </div>
-                    <span className="text-xs font-bold text-gray-400">平均饮水</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-gray-900">6.4</span>
-                    <span className="text-xs font-bold text-gray-400">杯/日</span>
-                  </div>
-                  <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-emerald-500">
-                    <TrendingUp size={12} />
-                    <span>较上周 +12%</span>
-                  </div>
-                </div>
-                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-                      <Sun size={20} />
-                    </div>
-                    <span className="text-xs font-bold text-gray-400">UV 暴露</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-gray-900">4.2</span>
-                    <span className="text-xs font-bold text-gray-400">指数</span>
-                  </div>
-                  <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-red-500">
-                    <TrendingUp size={12} className="rotate-180" />
-                    <span>较上周 -5%</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Recent Records List */}
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <History size={20} className="text-gray-400" />
-                  <h2 className="font-bold text-gray-700">最近记录</h2>
-                </div>
-                <button className="text-xs font-bold text-blue-500">查看全部</button>
-              </div>
-              <div className="space-y-4">
-                {diaryRecords.map((record) => (
-                  <div 
-                    key={record.id} 
-                    onClick={() => {
-                      setSelectedDiaryRecord(record);
-                      setCurrentPage('diary_detail');
-                    }}
-                    className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                        record.skin === '正常' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'
-                      }`}>
-                        {record.skin === '正常' ? <Smile size={24} /> : <AlertCircle size={24} />}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">{record.date}</h3>
-                        <p className="text-xs text-gray-400 font-medium">皮肤状态: {record.skin}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex flex-col items-center">
-                        <span className="text-[10px] font-black text-gray-300 uppercase">UV</span>
-                        <span className="text-sm font-black text-gray-700">{record.uv}</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-[10px] font-black text-gray-300 uppercase">H2O</span>
-                        <span className="text-sm font-black text-gray-700">{record.water}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-        </div>
-      );
-    }
-
     // Calculate completion percentage
     const completionPercentage = [
       uvLevel > 0,
@@ -889,357 +804,483 @@ export default function App() {
     ].filter(Boolean).length / 6 * 100;
 
     return (
-      <div className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto">
-        <header className="pt-12 px-6 pb-6 bg-white shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <button 
-              onClick={() => setIsAddingDiary(false)}
-              className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 active:scale-95"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <p className="text-blue-500 font-bold text-sm tracking-wider uppercase mb-1">New Entry</p>
-              <h1 className="text-2xl font-bold text-gray-900">记录今日状态</h1>
-            </div>
-          </div>
-          
-          {/* Diary Completion Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              <span>填写进度</span>
-              <span>{Math.round(completionPercentage)}%</span>
-            </div>
-            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-gradient-to-r from-blue-400 to-indigo-500"
-                initial={{ width: 0 }}
-                animate={{ width: `${completionPercentage}%` }}
-                transition={{ type: 'spring', stiffness: 50, damping: 20 }}
-              />
-            </div>
-          </div>
-        </header>
-
-        <div className="px-6 space-y-8 mt-6">
-          {/* UV Intensity */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Sun size={20} className={uvTextClass} />
-              <h2 className="font-bold text-gray-700">今日阳光强度</h2>
-            </div>
-            <div className="bg-white rounded-3xl p-8 border border-gray-100 flex flex-col items-center shadow-sm relative overflow-hidden">
-              {/* Background Decorative Gradient */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50" />
-              
-              <div className="relative w-56 h-56 flex items-center justify-center">
-                {/* SVG Circular Progress Bar */}
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle
-                    cx="112"
-                    cy="112"
-                    r="100"
-                    stroke="currentColor"
-                    strokeWidth="12"
-                    fill="transparent"
-                    className="text-gray-50"
-                  />
-                  <motion.circle
-                    cx="112"
-                    cy="112"
-                    r="100"
-                    stroke="url(#uvGradient)"
-                    strokeWidth="12"
-                    strokeDasharray="628"
-                    initial={{ strokeDashoffset: 628 }}
-                    animate={{ strokeDashoffset: 628 - (628 * uvLevel / 10) }}
-                    strokeLinecap="round"
-                    fill="transparent"
-                    transition={{ type: 'spring', stiffness: 50, damping: 15 }}
-                  />
-                  <defs>
-                    <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#fbbf24" />
-                      <stop offset="100%" stopColor="#ef4444" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ repeat: Infinity, duration: 3 }}
-                  >
-                    <Sun size={48} className={uvTextClass + ' mb-1'} />
-                  </motion.div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">UV Index</span>
-                  <span className="text-3xl font-black text-gray-900">{getUvText(uvLevel)}</span>
-                  <span className="text-[10px] font-bold text-gray-400 mt-1">{uvLevel}/10</span>
+      <AnimatePresence mode="wait">
+        {!isAddingDiary ? (
+          <motion.div 
+            key="diary-list"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto"
+          >
+            <header className="pt-12 px-6 pb-6 bg-white shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-blue-500 font-bold text-sm tracking-wider uppercase mb-1">Skin Diary</p>
+                  <h1 className="text-2xl font-bold text-gray-900">皮肤健康日记</h1>
                 </div>
-              </div>
-
-              {/* Linear Progress Bar for UV */}
-              <div className="w-full mt-10 space-y-3">
-                <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
-                  <motion.div 
-                    className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${uvLevel * 10}%` }}
-                    transition={{ type: 'spring', stiffness: 50 }}
-                  />
-                </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="10" 
-                  value={uvLevel}
-                  onChange={(e) => setUvLevel(parseInt(e.target.value))}
-                  className="w-full opacity-0 absolute h-3 cursor-pointer z-10" 
-                />
-                <div className="w-full flex justify-between px-1 text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                  <span className={uvLevel <= 2 ? 'text-yellow-500' : ''}>弱</span>
-                  <span className={uvLevel > 2 && uvLevel <= 5 ? 'text-orange-500' : ''}>中</span>
-                  <span className={uvLevel > 5 && uvLevel <= 8 ? 'text-red-500' : ''}>强</span>
-                  <span className={uvLevel > 8 ? 'text-red-700' : ''}>极强</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Protection Measures */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Shield size={20} className="text-blue-500" />
-              <h2 className="font-bold text-gray-700">防晒措施</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { name: '防晒霜', icon: Loader2 },
-                { name: '遮阳伞', icon: Umbrella },
-                { name: '防晒衣/帽', icon: Shirt },
-                { name: '墨镜', icon: Glasses }
-              ].map((item) => {
-                const isActive = selectedProtections.includes(item.name);
-                return (
-                  <button 
-                    key={item.name}
-                    onClick={() => toggleProtection(item.name)}
-                    className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all duration-300 border-2 ${
-                      isActive 
-                        ? 'bg-blue-50 border-blue-500 shadow-md shadow-blue-100' 
-                        : 'bg-white border-gray-100 hover:border-blue-200'
-                    }`}
-                  >
-                    <item.icon size={32} className={isActive ? 'text-blue-500' : 'text-gray-300'} />
-                    <span className={`text-xs font-bold ${isActive ? 'text-blue-500' : 'text-gray-400'}`}>{item.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Skin Feeling */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Activity size={20} className="text-emerald-500" />
-              <h2 className="font-bold text-gray-700">皮肤感受</h2>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {['正常', '干燥', '油腻', '瘙痒', '泛红', '紧绷'].map((feeling) => (
-                <button
-                  key={feeling}
-                  onClick={() => setSkinFeeling(feeling)}
-                  className={`px-6 py-3 rounded-full text-sm font-bold transition-all ${
-                    skinFeeling === feeling
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
-                      : 'bg-white text-gray-400 border border-gray-100'
-                  }`}
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsAddingDiary(true)}
+                  className="w-12 h-12 bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-100 flex items-center justify-center"
                 >
-                  {feeling}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Skin Tone */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <User size={20} className="text-amber-600" />
-              <div className="flex items-center justify-between w-full">
-                <h2 className="font-bold text-gray-700">今日皮肤颜色</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-amber-600/40 uppercase tracking-tighter">Tone Index: {skinTone}</span>
-                  <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">
-                    {skinTone < 20 ? '非常白皙' : skinTone < 40 ? '白皙' : skinTone < 60 ? '自然' : skinTone < 80 ? '小麦色' : '深褐色'}
-                  </span>
-                </div>
+                  <Plus size={24} />
+                </motion.button>
               </div>
-            </div>
-            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-              <div className="h-24 w-full rounded-2xl bg-gray-50 relative overflow-hidden shadow-inner border border-gray-100">
-                {/* Background Full Gradient (Dimmed) */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#FFDBAC] via-[#E0AC69] to-[#8D5524] opacity-20" />
-                
-                {/* Active Gradient Progress */}
-                <motion.div 
-                  className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-[#FFDBAC] via-[#E0AC69] to-[#8D5524] z-0"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${skinTone}%` }}
-                  transition={{ type: 'spring', damping: 20 }}
-                  style={{ backgroundSize: '100% 100%' }}
-                />
+            </header>
 
-                {/* Visual Indicator */}
-                <motion.div 
-                  className="absolute top-0 bottom-0 w-2 bg-white shadow-[0_0_15px_rgba(0,0,0,0.4)] z-10 pointer-events-none"
-                  animate={{ left: `${skinTone}%` }}
-                  transition={{ type: 'spring', damping: 20 }}
-                >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full border-4 border-amber-600 shadow-xl flex items-center justify-center">
-                    <div className="w-2 h-2 bg-amber-600 rounded-full" />
+            <div className="px-6 space-y-8 mt-6">
+              {/* Statistics Section */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 size={20} className="text-indigo-500" />
+                  <h2 className="font-bold text-gray-700">本周统计</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+                        <Droplets size={20} />
+                      </div>
+                      <span className="text-xs font-bold text-gray-400">平均饮水</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black text-gray-900">6.4</span>
+                      <span className="text-xs font-bold text-gray-400">杯/日</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-emerald-500">
+                      <TrendingUp size={12} />
+                      <span>较上周 +12%</span>
+                    </div>
                   </div>
-                </motion.div>
-                
-                {/* The actual slider - invisible but covers the whole area */}
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={skinTone}
-                  onChange={(e) => setSkinTone(parseInt(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30"
-                />
+                  <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+                        <Sun size={20} />
+                      </div>
+                      <span className="text-xs font-bold text-gray-400">UV 暴露</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black text-gray-900">4.2</span>
+                      <span className="text-xs font-bold text-gray-400">指数</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-red-500">
+                      <TrendingUp size={12} className="rotate-180" />
+                      <span>较上周 -5%</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-                {/* Subtle markers */}
-                <div className="absolute inset-0 flex justify-between px-6 items-center opacity-10 pointer-events-none z-20">
-                  {[...Array(10)].map((_, i) => (
-                    <div key={i} className="w-px h-8 bg-black" />
+              {/* Recent Records List */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <History size={20} className="text-gray-400" />
+                    <h2 className="font-bold text-gray-700">最近记录</h2>
+                  </div>
+                  <button className="text-xs font-bold text-blue-500">查看全部</button>
+                </div>
+                <div className="space-y-4">
+                  {diaryRecords.map((record) => (
+                    <div 
+                      key={record.id} 
+                      onClick={() => {
+                        setSelectedDiaryRecord(record);
+                        setCurrentPage('diary_detail');
+                      }}
+                      className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                          record.skin === '正常' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'
+                        }`}>
+                          {record.skin === '正常' ? <Smile size={24} /> : <AlertCircle size={24} />}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900">{record.date}</h3>
+                          <p className="text-xs text-gray-400 font-medium">皮肤状态: {record.skin}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[10px] font-black text-gray-300 uppercase">UV</span>
+                          <span className="text-sm font-black text-gray-700">{record.uv}</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-[10px] font-black text-gray-300 uppercase">H2O</span>
+                          <span className="text-sm font-black text-gray-700">{record.water}</span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="flex justify-between items-center mt-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-[#FFDBAC] border-2 border-white shadow-sm" />
-                  <span>Fair</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>Deep</span>
-                  <div className="w-5 h-5 rounded-full bg-[#8D5524] border-2 border-white shadow-sm" />
-                </div>
-              </div>
+              </section>
             </div>
-          </section>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="diary-add"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto"
+          >
+            <header className="pt-12 px-6 pb-6 bg-white shadow-sm">
+              <div className="flex items-center gap-4 mb-4">
+                <button 
+                  onClick={() => setIsAddingDiary(false)}
+                  className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 active:scale-95"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div>
+                  <p className="text-blue-500 font-bold text-sm tracking-wider uppercase mb-1">New Entry</p>
+                  <h1 className="text-2xl font-bold text-gray-900">记录今日状态</h1>
+                </div>
+              </div>
+              
+              {/* Diary Completion Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <span>填写进度</span>
+                  <span>{Math.round(completionPercentage)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-gradient-to-r from-blue-400 to-indigo-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completionPercentage}%` }}
+                    transition={{ type: 'spring', stiffness: 50, damping: 20 }}
+                  />
+                </div>
+              </div>
+            </header>
 
-          {/* Water Intake */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Droplets size={20} className="text-blue-400" />
-              <h2 className="font-bold text-gray-700">饮水量 (杯)</h2>
-            </div>
-            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+            <div className="px-6 space-y-8 mt-6">
+              {/* UV Intensity */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Sun size={20} className={uvTextClass} />
+                  <h2 className="font-bold text-gray-700">今日阳光强度</h2>
+                </div>
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 flex flex-col items-center shadow-sm relative overflow-hidden">
+                  {/* Background Decorative Gradient */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50" />
+                  
+                  <div className="relative w-56 h-56 flex items-center justify-center">
+                    {/* SVG Circular Progress Bar */}
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle
+                        cx="112"
+                        cy="112"
+                        r="100"
+                        stroke="currentColor"
+                        strokeWidth="12"
+                        fill="transparent"
+                        className="text-gray-50"
+                      />
+                      <motion.circle
+                        cx="112"
+                        cy="112"
+                        r="100"
+                        stroke="url(#uvGradient)"
+                        strokeWidth="12"
+                        strokeDasharray="628"
+                        initial={{ strokeDashoffset: 628 }}
+                        animate={{ strokeDashoffset: 628 - (628 * uvLevel / 10) }}
+                        strokeLinecap="round"
+                        fill="transparent"
+                        transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+                      />
+                      <defs>
+                        <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#fbbf24" />
+                          <stop offset="100%" stopColor="#ef4444" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <motion.div
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ repeat: Infinity, duration: 3 }}
+                      >
+                        <Sun size={48} className={uvTextClass + ' mb-1'} />
+                      </motion.div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">UV Index</span>
+                      <span className="text-3xl font-black text-gray-900">{getUvText(uvLevel)}</span>
+                      <span className="text-[10px] font-bold text-gray-400 mt-1">{uvLevel}/10</span>
+                    </div>
+                  </div>
+
+                  {/* Linear Progress Bar for UV */}
+                  <div className="w-full mt-10 space-y-3">
+                    <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
+                      <motion.div 
+                        className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${uvLevel * 10}%` }}
+                        transition={{ type: 'spring', stiffness: 50 }}
+                      />
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="10" 
+                      value={uvLevel}
+                      onChange={(e) => setUvLevel(parseInt(e.target.value))}
+                      className="w-full opacity-0 absolute h-3 cursor-pointer z-10" 
+                    />
+                    <div className="w-full flex justify-between px-1 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                      <span className={uvLevel <= 2 ? 'text-yellow-500' : ''}>弱</span>
+                      <span className={uvLevel > 2 && uvLevel <= 5 ? 'text-orange-500' : ''}>中</span>
+                      <span className={uvLevel > 5 && uvLevel <= 8 ? 'text-red-500' : ''}>强</span>
+                      <span className={uvLevel > 8 ? 'text-red-700' : ''}>极强</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Protection Measures */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Shield size={20} className="text-blue-500" />
+                  <h2 className="font-bold text-gray-700">防晒措施</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { name: '防晒霜', icon: Loader2 },
+                    { name: '遮阳伞', icon: Umbrella },
+                    { name: '防晒衣/帽', icon: Shirt },
+                    { name: '墨镜', icon: Glasses }
+                  ].map((item) => {
+                    const isActive = selectedProtections.includes(item.name);
+                    return (
+                      <button 
+                        key={item.name}
+                        onClick={() => toggleProtection(item.name)}
+                        className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all duration-300 border-2 ${
+                          isActive 
+                            ? 'bg-blue-50 border-blue-500 shadow-md shadow-blue-100' 
+                            : 'bg-white border-gray-100 hover:border-blue-200'
+                        }`}
+                      >
+                        <item.icon size={32} className={isActive ? 'text-blue-500' : 'text-gray-300'} />
+                        <span className={`text-xs font-bold ${isActive ? 'text-blue-500' : 'text-gray-400'}`}>{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Skin Feeling */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Activity size={20} className="text-emerald-500" />
+                  <h2 className="font-bold text-gray-700">皮肤感受</h2>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {['正常', '干燥', '油腻', '瘙痒', '泛红', '紧绷'].map((feeling) => (
                     <button
-                      key={num}
-                      onClick={() => setWaterIntake(num)}
-                      className={`w-8 h-10 rounded-lg flex items-center justify-center transition-all ${
-                        waterIntake >= num ? 'bg-blue-500 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-300'
+                      key={feeling}
+                      onClick={() => setSkinFeeling(feeling)}
+                      className={`px-6 py-3 rounded-full text-sm font-bold transition-all ${
+                        skinFeeling === feeling
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
+                          : 'bg-white text-gray-400 border border-gray-100'
                       }`}
                     >
-                      <Droplets size={16} />
+                      {feeling}
                     </button>
                   ))}
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-blue-500">{waterIntake}</span>
-                  <span className="text-xs font-bold text-gray-300 ml-1">/ 8</span>
-                </div>
-              </div>
-              
-              {/* Gradient Progress Bar for Water */}
-              <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
-                <motion.div 
-                  className="h-full rounded-full bg-gradient-to-r from-blue-300 via-blue-500 to-indigo-600"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(waterIntake / 8) * 100}%` }}
-                  transition={{ type: 'spring', stiffness: 50 }}
-                />
-              </div>
-            </div>
-          </section>
+              </section>
 
-          {/* Sleep Quality */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Moon size={20} className="text-indigo-400" />
-              <h2 className="font-bold text-gray-700">睡眠质量</h2>
-            </div>
-            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { name: '糟糕', icon: Frown, color: 'text-red-400', bg: 'bg-red-50', value: 33 },
-                  { name: '一般', icon: Meh, color: 'text-orange-400', bg: 'bg-orange-50', value: 66 },
-                  { name: '良好', icon: Smile, color: 'text-emerald-400', bg: 'bg-emerald-50', value: 100 }
-                ].map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => setSleepQuality(item.name)}
-                    className={`p-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${
-                      sleepQuality === item.name
-                        ? `${item.bg} border-current ${item.color} shadow-lg`
-                        : 'bg-white border-gray-100 text-gray-300'
-                    }`}
-                  >
-                    <item.icon size={32} />
-                    <span className="text-xs font-bold">{item.name}</span>
-                  </button>
-                ))}
-              </div>
-              
-              {/* Gradient Progress Bar for Sleep */}
-              {sleepQuality && (
-                <div className="space-y-2">
-                  <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden">
+              {/* Skin Tone */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <User size={20} className="text-amber-600" />
+                  <div className="flex items-center justify-between w-full">
+                    <h2 className="font-bold text-gray-700">今日皮肤颜色</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-amber-600/40 uppercase tracking-tighter">Tone Index: {skinTone}</span>
+                      <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">
+                        {skinTone < 20 ? '非常白皙' : skinTone < 40 ? '白皙' : skinTone < 60 ? '自然' : skinTone < 80 ? '小麦色' : '深褐色'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+                  <div className="h-24 w-full rounded-2xl bg-gray-50 relative overflow-hidden shadow-inner border border-gray-100">
+                    {/* Background Full Gradient (Dimmed) */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#FFDBAC] via-[#E0AC69] to-[#8D5524] opacity-20" />
+                    
+                    {/* Active Gradient Progress */}
                     <motion.div 
-                      className={`h-full bg-gradient-to-r ${
-                        sleepQuality === '糟糕' ? 'from-red-400 to-red-600' :
-                        sleepQuality === '一般' ? 'from-orange-400 to-orange-600' :
-                        'from-emerald-400 to-emerald-600'
-                      }`}
+                      className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-[#FFDBAC] via-[#E0AC69] to-[#8D5524] z-0"
                       initial={{ width: 0 }}
-                      animate={{ 
-                        width: sleepQuality === '糟糕' ? '33%' : sleepQuality === '一般' ? '66%' : '100%' 
-                      }}
+                      animate={{ width: `${skinTone}%` }}
+                      transition={{ type: 'spring', damping: 20 }}
+                      style={{ backgroundSize: '100% 100%' }}
+                    />
+
+                    {/* Visual Indicator */}
+                    <motion.div 
+                      className="absolute top-0 bottom-0 w-2 bg-white shadow-[0_0_15px_rgba(0,0,0,0.4)] z-10 pointer-events-none"
+                      animate={{ left: `${skinTone}%` }}
+                      transition={{ type: 'spring', damping: 20 }}
+                    >
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full border-4 border-amber-600 shadow-xl flex items-center justify-center">
+                        <div className="w-2 h-2 bg-amber-600 rounded-full" />
+                      </div>
+                    </motion.div>
+                    
+                    {/* The actual slider - invisible but covers the whole area */}
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={skinTone}
+                      onChange={(e) => setSkinTone(parseInt(e.target.value))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30"
+                    />
+
+                    {/* Subtle markers */}
+                    <div className="absolute inset-0 flex justify-between px-6 items-center opacity-10 pointer-events-none z-20">
+                      {[...Array(10)].map((_, i) => (
+                        <div key={i} className="w-px h-8 bg-black" />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-[#FFDBAC] border-2 border-white shadow-sm" />
+                      <span>Fair</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>Deep</span>
+                      <div className="w-5 h-5 rounded-full bg-[#8D5524] border-2 border-white shadow-sm" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Water Intake */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Droplets size={20} className="text-blue-400" />
+                  <h2 className="font-bold text-gray-700">饮水量 (杯)</h2>
+                </div>
+                <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => setWaterIntake(num)}
+                          className={`w-8 h-10 rounded-lg flex items-center justify-center transition-all ${
+                            waterIntake >= num ? 'bg-blue-500 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-300'
+                          }`}
+                        >
+                          <Droplets size={16} />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-blue-500">{waterIntake}</span>
+                      <span className="text-xs font-bold text-gray-300 ml-1">/ 8</span>
+                    </div>
+                  </div>
+                  
+                  {/* Gradient Progress Bar for Water */}
+                  <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
+                    <motion.div 
+                      className="h-full rounded-full bg-gradient-to-r from-blue-300 via-blue-500 to-indigo-600"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(waterIntake / 8) * 100}%` }}
                       transition={{ type: 'spring', stiffness: 50 }}
                     />
                   </div>
                 </div>
-              )}
-            </div>
-          </section>
+              </section>
 
-          <button 
-            onClick={handleSaveDiary}
-            disabled={isSavingDiary}
-            className={`w-full py-4 font-bold rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
-              isSavingDiary 
-                ? 'bg-emerald-500 text-white shadow-emerald-200' 
-                : 'bg-blue-500 text-white shadow-blue-200 active:scale-95'
-            }`}
-          >
-            {isSavingDiary ? (
-              <>
-                <CheckCircle2 size={20} />
-                <span>保存成功</span>
-              </>
-            ) : (
-              <span>保存今日记录</span>
-            )}
-          </button>
-        </div>
-      </div>
+              {/* Sleep Quality */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Moon size={20} className="text-indigo-400" />
+                  <h2 className="font-bold text-gray-700">睡眠质量</h2>
+                </div>
+                <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { name: '糟糕', icon: Frown, color: 'text-red-400', bg: 'bg-red-50', value: 33 },
+                      { name: '一般', icon: Meh, color: 'text-orange-400', bg: 'bg-orange-50', value: 66 },
+                      { name: '良好', icon: Smile, color: 'text-emerald-400', bg: 'bg-emerald-50', value: 100 }
+                    ].map((item) => (
+                      <button
+                        key={item.name}
+                        onClick={() => setSleepQuality(item.name)}
+                        className={`p-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${
+                          sleepQuality === item.name
+                            ? `${item.bg} border-current ${item.color} shadow-lg`
+                            : 'bg-white border-gray-100 text-gray-300'
+                        }`}
+                      >
+                        <item.icon size={32} />
+                        <span className="text-xs font-bold">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Gradient Progress Bar for Sleep */}
+                  {sleepQuality && (
+                    <div className="space-y-2">
+                      <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden">
+                        <motion.div 
+                          className={`h-full bg-gradient-to-r ${
+                            sleepQuality === '糟糕' ? 'from-red-400 to-red-600' :
+                            sleepQuality === '一般' ? 'from-orange-400 to-orange-600' :
+                            'from-emerald-400 to-emerald-600'
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ 
+                            width: sleepQuality === '糟糕' ? '33%' : sleepQuality === '一般' ? '66%' : '100%' 
+                          }}
+                          transition={{ type: 'spring', stiffness: 50 }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <button 
+                onClick={handleSaveDiary}
+                disabled={isSavingDiary}
+                className={`w-full py-4 font-bold rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                  isSavingDiary 
+                    ? 'bg-emerald-500 text-white shadow-emerald-200' 
+                    : 'bg-blue-500 text-white shadow-blue-200 active:scale-95'
+                }`}
+              >
+                {isSavingDiary ? (
+                  <>
+                    <CheckCircle2 size={20} />
+                    <span>保存成功</span>
+                  </>
+                ) : (
+                  <span>保存今日记录</span>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   };
 
