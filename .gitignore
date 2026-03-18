@@ -7,7 +7,6 @@ coverage/
 .env*
 !.env.example
 .android-sdk/
-.jdk17/
 .jdk21/
 android/.gradle/
 android/build/

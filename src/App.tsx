@@ -157,8 +157,7 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const adminTestFileInputRef = useRef<HTMLInputElement>(null);
-  const [adminProviders, setAdminProviders] = useState<string[]>([]);
-  const [adminProvider, setAdminProvider] = useState('local_model');
+  const [adminProvider, setAdminProvider] = useState('external_ai_api');
   const [adminEndpoint, setAdminEndpoint] = useState('');
   const [adminModel, setAdminModel] = useState('');
   const [adminApiKey, setAdminApiKey] = useState('');
@@ -256,17 +255,12 @@ export default function App() {
     setAdminLoading(true);
     setAdminMessage('');
     try {
-      const [providersResp, configResp] = await Promise.all([
-        fetch(buildApiUrl('/api/admin/ai/providers')),
-        fetch(buildApiUrl('/api/admin/ai/config'))
-      ]);
-      if (!providersResp.ok || !configResp.ok) {
+      const configResp = await fetch(buildApiUrl('/api/admin/ai/config'));
+      if (!configResp.ok) {
         throw new Error('后台配置读取失败');
       }
-      const providersData = await providersResp.json();
       const configData = await configResp.json();
-      setAdminProviders(Array.isArray(providersData.providers) ? providersData.providers : []);
-      setAdminProvider(configData.provider || 'local_model');
+      setAdminProvider(configData.provider || 'external_ai_api');
       setAdminEndpoint(configData.external?.endpoint || '');
       setAdminModel(configData.external?.model || '');
       setAdminTimeoutMs(String(configData.external?.timeoutMs || 20000));
@@ -290,7 +284,7 @@ export default function App() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          provider: adminProvider,
+          provider: 'external_ai_api',
           external: {
             endpoint: adminEndpoint,
             model: adminModel,
@@ -342,7 +336,7 @@ export default function App() {
         },
         body: JSON.stringify({
           imageBase64: adminTestImage,
-          provider: adminProvider
+          provider: 'external_ai_api'
         })
       });
       const data = await response.json();
@@ -1601,16 +1595,8 @@ export default function App() {
       <div className="p-6 space-y-5">
         <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
           <h3 className="font-bold text-gray-900">AI 提供方</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {(adminProviders.length > 0 ? adminProviders : ['local_model', 'external_ai_api']).map((provider) => (
-              <button
-                key={provider}
-                onClick={() => setAdminProvider(provider)}
-                className={`py-3 rounded-2xl text-sm font-bold border transition-colors ${adminProvider === provider ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-200 text-gray-500'}`}
-              >
-                {provider}
-              </button>
-            ))}
+          <div className="py-3 rounded-2xl text-sm font-bold border bg-blue-50 border-blue-500 text-blue-600 text-center">
+            {adminProvider}
           </div>
         </div>
 

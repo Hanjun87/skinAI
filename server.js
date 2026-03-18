@@ -1,75 +1,16 @@
 import express from 'express';
-import { spawn } from 'node:child_process';
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 
 const app = express();
 const port = Number(process.env.API_PORT || 8787);
-const providers = ['local_model', 'external_ai_api'];
+const providers = ['external_ai_api'];
 const aiConfig = {
-    provider: 'local_model',
+    provider: 'external_ai_api',
     external: {
         endpoint: process.env.EXTERNAL_AI_ENDPOINT || '',
         apiKey: process.env.EXTERNAL_AI_API_KEY || '',
         model: process.env.EXTERNAL_AI_MODEL || '',
         timeoutMs: Number(process.env.EXTERNAL_AI_TIMEOUT_MS || 20000)
     }
-};
-
-const labelMetadata = {
-    akiec: {
-        diagnosis: '光化性角化病',
-        description: '模型识别为光化性角化病倾向，建议尽快至皮肤科进行面诊与皮镜检查确认。',
-        precautions: ['避免暴晒并加强防晒', '不要自行抠抓或刺激病灶', '尽快进行专业皮肤科复查']
-    },
-    bcc: {
-        diagnosis: '基底细胞癌',
-        description: '模型识别为基底细胞癌倾向，此结果仅作辅助，请尽快到医院进一步检查。',
-        precautions: ['避免延误诊治', '记录病灶变化并及时复诊', '遵循医生建议进行治疗']
-    },
-    bkl: {
-        diagnosis: '良性角化样病变',
-        description: '模型识别为良性角化样病变倾向，建议结合临床表现进行复核。',
-        precautions: ['注意皮肤清洁与保湿', '避免反复摩擦病灶区域', '若快速变化请及时就医']
-    },
-    df: {
-        diagnosis: '皮肤纤维瘤',
-        description: '模型识别为皮肤纤维瘤倾向，通常为良性，但仍建议专业确认。',
-        precautions: ['避免抓挠和刺激', '观察大小与颜色变化', '必要时到皮肤科复查']
-    },
-    mel: {
-        diagnosis: '黑色素瘤',
-        description: '模型识别为黑色素瘤倾向，存在较高风险，请尽快进行专业诊断。',
-        precautions: ['尽快就医进行进一步检查', '避免阳光暴晒', '不要自行处理病灶']
-    },
-    nv: {
-        diagnosis: '色素痣',
-        description: '模型识别为色素痣倾向，建议持续观察其边界、颜色和大小变化。',
-        precautions: ['避免频繁摩擦刺激', '做好防晒', '如出现不对称或出血请及时就医']
-    },
-    vasc: {
-        diagnosis: '血管性皮肤病变',
-        description: '模型识别为血管性皮肤病变倾向，建议结合医生检查进一步判断。',
-        precautions: ['减少局部刺激', '避免高温暴晒', '若症状持续或加重请及时就医']
-    }
-};
-
-const parseImagePayload = (imageBase64) => {
-    if (!imageBase64 || typeof imageBase64 !== 'string') {
-        throw new Error('缺少图片数据');
-    }
-    const match = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-    if (match) {
-        return { mimeType: match[1], buffer: Buffer.from(match[2], 'base64') };
-    }
-    return { mimeType: 'image/jpeg', buffer: Buffer.from(imageBase64, 'base64') };
-};
-
-const mimeToExt = (mimeType) => {
-    if (mimeType.includes('png')) return 'png';
-    if (mimeType.includes('webp')) return 'webp';
-    return 'jpg';
 };
 
 const normalizeOutput = (data) => {
@@ -93,42 +34,10 @@ const normalizeOutput = (data) => {
     };
 };
 
-const mapPredictionToMedicalText = (predictions) => {
-    if (!Array.isArray(predictions) || predictions.length === 0) {
-        throw new Error('推理结果为空');
-    }
-    const top = predictions[0];
-    const metadata = labelMetadata[top.label] || {
-        diagnosis: top.label,
-        description: '模型已完成识别，请结合专业医生意见进行判断。',
-        precautions: ['避免抓挠和刺激病灶', '保持患处清洁干燥', '如有不适请及时就医']
-    };
-    return {
-        diagnosis: metadata.diagnosis,
-        probability: Math.round(Number(top.prob || 0) * 100),
-        description: metadata.description,
-        precautions: metadata.precautions,
-        predictions: predictions.map((item) => ({
-            label: item.label,
-            probability: Math.round(Number(item.prob || 0) * 100)
-        }))
-    };
-};
-
-const analyzeByLocalModel = async (imageBase64) => {
-    let imagePath = '';
-    try {
-        const { mimeType, buffer } = parseImagePayload(imageBase64);
-        const ext = mimeToExt(mimeType);
-        imagePath = path.join(os.tmpdir(), `skinai-${Date.now()}.${ext}`);
-        await fs.writeFile(imagePath, buffer);
-        const predictions = await runInference(imagePath);
-        return mapPredictionToMedicalText(predictions);
-    } finally {
-        if (imagePath) {
-            await fs.unlink(imagePath).catch(() => undefined);
-        }
-    }
+const maskApiKey = (apiKey) => {
+    if (!apiKey) return '';
+    if (apiKey.length <= 8) return '********';
+    return `${apiKey.slice(0, 4)}********${apiKey.slice(-4)}`;
 };
 
 const analyzeByExternalApi = async (imageBase64) => {
@@ -168,67 +77,6 @@ const analyzeByExternalApi = async (imageBase64) => {
     }
 };
 
-const analyzeByConfiguredProvider = async (imageBase64, overrideProvider) => {
-    const provider = overrideProvider || aiConfig.provider;
-    if (provider === 'local_model') {
-        return analyzeByLocalModel(imageBase64);
-    }
-    if (provider === 'external_ai_api') {
-        return analyzeByExternalApi(imageBase64);
-    }
-    throw new Error('不支持的AI提供方');
-};
-
-const maskApiKey = (apiKey) => {
-    if (!apiKey) return '';
-    if (apiKey.length <= 8) return '********';
-    return `${apiKey.slice(0, 4)}********${apiKey.slice(-4)}`;
-};
-
-const runInference = async (imagePath) => {
-    const pythonArgs = [
-        'model/infer.py',
-        '--image',
-        imagePath,
-        '--package-dir',
-        'model',
-        '--topk',
-        '3',
-        '--cpu'
-    ];
-    const command = process.env.PYTHON_BIN || 'python';
-
-    return new Promise((resolve, reject) => {
-        const child = spawn(command, pythonArgs, {
-            cwd: process.cwd(),
-            stdio: ['ignore', 'pipe', 'pipe']
-        });
-        let stdout = '';
-        let stderr = '';
-        child.stdout.on('data', (chunk) => {
-            stdout += chunk.toString();
-        });
-        child.stderr.on('data', (chunk) => {
-            stderr += chunk.toString();
-        });
-        child.on('error', (err) => {
-            reject(err);
-        });
-        child.on('close', (code) => {
-            if (code !== 0) {
-                reject(new Error(stderr || `推理进程退出码 ${code}`));
-                return;
-            }
-            try {
-                const parsed = JSON.parse(stdout);
-                resolve(parsed);
-            } catch {
-                reject(new Error('推理结果解析失败'));
-            }
-        });
-    });
-};
-
 app.use(express.json({ limit: '12mb' }));
 
 app.get('/api/health', (_req, res) => {
@@ -241,7 +89,7 @@ app.post('/api/analyze-skin', async (req, res) => {
         if (!imageBase64 || typeof imageBase64 !== 'string') {
             throw new Error('缺少图片数据');
         }
-        const result = await analyzeByConfiguredProvider(imageBase64);
+        const result = await analyzeByExternalApi(imageBase64);
         res.json(result);
     } catch (error) {
         res.status(500).json({
@@ -272,12 +120,10 @@ app.get('/api/admin/ai/config', (_req, res) => {
 app.put('/api/admin/ai/config', (req, res) => {
     try {
         const { provider, external } = req.body || {};
-        if (provider !== undefined) {
-            if (!providers.includes(provider)) {
-                throw new Error('provider 不合法');
-            }
-            aiConfig.provider = provider;
+        if (provider !== undefined && provider !== 'external_ai_api') {
+            throw new Error('当前仅支持 external_ai_api');
         }
+        aiConfig.provider = 'external_ai_api';
         if (external && typeof external === 'object') {
             if (external.endpoint !== undefined) {
                 aiConfig.external.endpoint = String(external.endpoint || '').trim();
@@ -319,10 +165,10 @@ app.post('/api/admin/ai/analyze', async (req, res) => {
         if (!imageBase64 || typeof imageBase64 !== 'string') {
             throw new Error('缺少图片数据');
         }
-        if (provider !== undefined && !providers.includes(provider)) {
-            throw new Error('provider 不合法');
+        if (provider !== undefined && provider !== 'external_ai_api') {
+            throw new Error('当前仅支持 external_ai_api');
         }
-        const result = await analyzeByConfiguredProvider(imageBase64, provider);
+        const result = await analyzeByExternalApi(imageBase64);
         res.json(result);
     } catch (error) {
         res.status(500).json({
