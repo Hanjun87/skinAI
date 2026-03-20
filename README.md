@@ -15,6 +15,22 @@
    `npm run dev:api`
 3. Run frontend:
    `npm run dev`
+4. Run admin frontend (separate window/port):
+   `npm run dev:admin`
+
+## 独立后台管理
+
+- 后台地址：`http://localhost:8788`
+- 后台与 App 前端分离，不再内嵌在移动应用页面中
+- 后台默认调用 API：`http://localhost:8787`（可用 `ADMIN_API_BASE_URL` 覆盖）
+
+## PostgreSQL 配置
+
+- 支持两种连接方式：
+  - `DATABASE_URL`
+  - `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE`
+- AI 后台配置（接口地址、模型、提示词等）写入 PostgreSQL 表：`ai_admin_config`
+- 若未配置 PostgreSQL，服务会使用环境变量默认值并提示警告
 
 ## Android Build (APK)
 

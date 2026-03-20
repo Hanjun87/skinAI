@@ -1,0 +1,143 @@
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.layout {
+  min-height: 100vh;
+  display: flex;
+}
+
+.sidebar {
+  width: 220px;
+  background: #111827;
+  color: #f9fafb;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+
+.menu {
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  background: transparent;
+  color: #d1d5db;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu.active {
+  background: #1f2937;
+  color: #fff;
+}
+
+.content {
+  flex: 1;
+  padding: 24px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.panel {
+  display: none;
+  gap: 16px;
+}
+
+.panel.active {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+input,
+textarea,
+button {
+  font-size: 14px;
+}
+
+input,
+textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+}
+
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+button {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+button.primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+#testResult {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  min-height: 140px;
+  white-space: pre-wrap;
+}
+
+#message {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #1d4ed8;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px;
+  }
+  .sidebar h1 {
+    margin: 0 12px 0 0;
+  }
+  .panel.active {
+    grid-template-columns: 1fr;
+  }
+}

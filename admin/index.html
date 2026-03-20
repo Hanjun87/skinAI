@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkinAI 后台管理</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h1>SkinAI</h1>
+        <button data-menu="ai" class="menu active">AI管理</button>
+        <button data-menu="test" class="menu">接口测试</button>
+      </aside>
+
+      <main class="content">
+        <header>
+          <h2>后台管理</h2>
+          <button id="refreshBtn">刷新</button>
+        </header>
+
+        <section id="panel-ai" class="panel active">
+          <div class="card">
+            <h3>接口配置</h3>
+            <input id="endpoint" placeholder="API接口地址 (Endpoint URL)" />
+            <input id="model" placeholder="模型名称 (Model)" />
+            <input id="timeoutMs" placeholder="超时时间ms (1000~120000)" />
+            <input id="apiKey" placeholder="API Key（留空则不修改）" />
+          </div>
+          <div class="card">
+            <h3>提示词配置</h3>
+            <textarea id="systemPrompt" placeholder="系统提示词（system prompt）"></textarea>
+            <textarea id="userPromptTemplate" placeholder="用户提示词模板（user prompt template）"></textarea>
+            <button id="saveBtn" class="primary">保存配置</button>
+          </div>
+        </section>
+
+        <section id="panel-test" class="panel">
+          <div class="card">
+            <h3>识别接口测试</h3>
+            <input id="testImage" type="file" accept="image/*" />
+            <button id="runTestBtn" class="primary">开始识别</button>
+            <pre id="testResult"></pre>
+          </div>
+        </section>
+
+        <div id="message"></div>
+      </main>
+    </div>
+
+    <script src="/admin-config.js"></script>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

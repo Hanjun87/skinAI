@@ -41,7 +41,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // --- Types ---
 
-type Page = 'home' | 'camera' | 'analysis' | 'result' | 'records' | 'record_detail' | 'diary' | 'diary_detail' | 'profile' | 'consultations' | 'appointments' | 'settings' | 'about' | 'admin_ai';
+type Page = 'home' | 'camera' | 'analysis' | 'result' | 'records' | 'record_detail' | 'diary' | 'diary_detail' | 'profile' | 'consultations' | 'appointments' | 'settings' | 'about';
 
 interface Record {
   id: string;
@@ -64,13 +64,6 @@ interface AnalysisResult {
   userImage: string;
 }
 
-interface AdminAnalyzeResult {
-  diagnosis: string;
-  probability: number;
-  description: string;
-  precautions: string[];
-}
-
 // --- Components ---
 
 const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavigate: (p: Page) => void }) => {
@@ -88,7 +81,7 @@ const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavigate: (
           key={item.id}
           onClick={() => onNavigate(item.id)}
           className={`flex flex-col items-center gap-1 transition-colors ${(activePage === item.id ||
-            (item.id === 'profile' && ['consultations', 'appointments', 'settings', 'about', 'admin_ai'].includes(activePage)))
+            (item.id === 'profile' && ['consultations', 'appointments', 'settings', 'about'].includes(activePage)))
             ? 'text-blue-500' : 'text-gray-400'
             }`}
         >
@@ -112,7 +105,7 @@ export default function App() {
     const levels: { [key in Page]: number } = {
       home: 0, records: 0, diary: 0, profile: 0,
       camera: 1, analysis: 1, result: 1, record_detail: 1, diary_detail: 1,
-      consultations: 1, appointments: 1, settings: 1, about: 1, admin_ai: 1
+      consultations: 1, appointments: 1, settings: 1, about: 1
     };
     const tabs: Page[] = ['home', 'records', 'diary', 'profile'];
 
@@ -156,19 +149,9 @@ export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const adminTestFileInputRef = useRef<HTMLInputElement>(null);
-  const [adminProvider, setAdminProvider] = useState('external_ai_api');
-  const [adminEndpoint, setAdminEndpoint] = useState('');
-  const [adminModel, setAdminModel] = useState('');
-  const [adminApiKey, setAdminApiKey] = useState('');
-  const [adminTimeoutMs, setAdminTimeoutMs] = useState('20000');
-  const [adminApiKeyMasked, setAdminApiKeyMasked] = useState('');
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [adminSaving, setAdminSaving] = useState(false);
-  const [adminMessage, setAdminMessage] = useState('');
-  const [adminTestImage, setAdminTestImage] = useState<string | null>(null);
-  const [adminTesting, setAdminTesting] = useState(false);
-  const [adminTestResult, setAdminTestResult] = useState<AdminAnalyzeResult | null>(null);
+  const [cameraError, setCameraError] = useState('');
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
 
   // --- AI Logic ---
 
@@ -251,121 +234,35 @@ export default function App() {
     }, 600);
   };
 
-  const loadAdminConfig = async () => {
-    setAdminLoading(true);
-    setAdminMessage('');
-    try {
-      const configResp = await fetch(buildApiUrl('/api/admin/ai/config'));
-      if (!configResp.ok) {
-        throw new Error('后台配置读取失败');
-      }
-      const configData = await configResp.json();
-      setAdminProvider(configData.provider || 'external_ai_api');
-      setAdminEndpoint(configData.external?.endpoint || '');
-      setAdminModel(configData.external?.model || '');
-      setAdminTimeoutMs(String(configData.external?.timeoutMs || 20000));
-      setAdminApiKeyMasked(configData.external?.apiKeyMasked || '');
-      setAdminApiKey('');
-    } catch (error) {
-      console.error(error);
-      setAdminMessage('读取配置失败');
-    } finally {
-      setAdminLoading(false);
-    }
-  };
-
-  const saveAdminConfig = async () => {
-    setAdminSaving(true);
-    setAdminMessage('');
-    try {
-      const response = await fetch(buildApiUrl('/api/admin/ai/config'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          provider: 'external_ai_api',
-          external: {
-            endpoint: adminEndpoint,
-            model: adminModel,
-            timeoutMs: Number(adminTimeoutMs),
-            ...(adminApiKey ? { apiKey: adminApiKey } : {})
-          }
-        })
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || '保存失败');
-      }
-      setAdminApiKeyMasked(data.external?.apiKeyMasked || '');
-      setAdminApiKey('');
-      setAdminMessage('配置已保存');
-    } catch (error) {
-      setAdminMessage(error instanceof Error ? error.message : '保存失败');
-    } finally {
-      setAdminSaving(false);
-    }
-  };
-
-  const handleAdminTestFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setAdminTestImage(dataUrl);
-      setAdminTestResult(null);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const runAdminAnalyze = async () => {
-    if (!adminTestImage) {
-      setAdminMessage('请先上传测试图片');
-      return;
-    }
-    setAdminTesting(true);
-    setAdminMessage('');
-    try {
-      const response = await fetch(buildApiUrl('/api/admin/ai/analyze'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          imageBase64: adminTestImage,
-          provider: 'external_ai_api'
-        })
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || '测试识别失败');
-      }
-      setAdminTestResult({
-        diagnosis: data.diagnosis,
-        probability: data.probability,
-        description: data.description,
-        precautions: data.precautions
-      });
-    } catch (error) {
-      setAdminMessage(error instanceof Error ? error.message : '测试识别失败');
-    } finally {
-      setAdminTesting(false);
-    }
-  };
-
   // --- Camera Logic ---
 
   const startCamera = async () => {
+    if (cameraLoading) return;
+    setCameraError('');
+    setCameraLoading(true);
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('当前设备不支持相机调用');
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
+      setCameraReady(true);
     } catch (err) {
+      const name = err instanceof DOMException ? err.name : '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setCameraError('未获得摄像头权限，请在系统设置中允许相机访问后重试');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setCameraError('未检测到可用摄像头');
+      } else {
+        setCameraError('相机启动失败，请重试');
+      }
+      setCameraReady(false);
       console.error("Error accessing camera:", err);
+    } finally {
+      setCameraLoading(false);
     }
   };
 
@@ -373,10 +270,16 @@ export default function App() {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
     }
+    setCameraReady(false);
   };
 
   const takePhoto = () => {
+    if (!cameraReady) {
+      setCameraError('相机尚未就绪，请先授权并开启相机');
+      return;
+    }
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
       if (context) {
@@ -396,14 +299,9 @@ export default function App() {
       startCamera();
     } else {
       stopCamera();
+      setCameraError('');
     }
     return () => stopCamera();
-  }, [currentPage]);
-
-  useEffect(() => {
-    if (currentPage === 'admin_ai') {
-      loadAdminConfig();
-    }
   }, [currentPage]);
 
   // --- Render Helpers ---
@@ -457,6 +355,17 @@ export default function App() {
 
       <div className="flex-grow relative overflow-hidden">
         <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+        {!cameraReady && (
+          <div className="absolute inset-0 bg-black/65 flex flex-col items-center justify-center px-8 text-center">
+            <p className="text-white text-sm mb-4">{cameraError || (cameraLoading ? '正在开启摄像头...' : '请先开启摄像头权限')}</p>
+            <button
+              onClick={startCamera}
+              className="px-5 py-2.5 rounded-full bg-blue-500 text-white text-sm font-semibold active:scale-95 transition-transform"
+            >
+              {cameraLoading ? '开启中...' : '开启摄像头'}
+            </button>
+          </div>
+        )}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-72 h-72 border-2 border-blue-500/50 rounded-3xl relative">
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-2xl" />
@@ -1538,19 +1447,6 @@ export default function App() {
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">系统服务</h3>
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <button
-                onClick={() => setCurrentPage('admin_ai')}
-                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                    <Shield size={20} />
-                  </div>
-                  <span className="font-bold text-gray-700">AI后台管理</span>
-                </div>
-                <ChevronRight size={20} className="text-gray-200" />
-              </button>
-              <div className="h-px bg-gray-50 mx-4" />
-              <button
                 onClick={() => setCurrentPage('settings')}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
               >
@@ -1578,106 +1474,6 @@ export default function App() {
             </div>
           </section>
         </div>
-      </div>
-    </div>
-  );
-
-  const renderAdminAI = () => (
-    <div className="flex flex-col h-full bg-gray-50 pb-24 overflow-y-auto">
-      <header className="p-6 flex items-center justify-between bg-white sticky top-0 z-10 border-b border-gray-100">
-        <button onClick={() => setCurrentPage('profile')} className="text-gray-400 active:scale-90 transition-transform">
-          <ArrowLeft size={24} />
-        </button>
-        <h2 className="text-lg font-bold text-gray-900">AI后台管理</h2>
-        <button onClick={loadAdminConfig} className="text-blue-500 text-sm font-bold">{adminLoading ? '刷新中' : '刷新'}</button>
-      </header>
-
-      <div className="p-6 space-y-5">
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-900">AI 提供方</h3>
-          <div className="py-3 rounded-2xl text-sm font-bold border bg-blue-50 border-blue-500 text-blue-600 text-center">
-            {adminProvider}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-900">外部AI接口配置</h3>
-          <div className="space-y-3">
-            <input
-              value={adminEndpoint}
-              onChange={(e) => setAdminEndpoint(e.target.value)}
-              placeholder="Endpoint URL"
-              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
-            />
-            <input
-              value={adminModel}
-              onChange={(e) => setAdminModel(e.target.value)}
-              placeholder="Model"
-              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
-            />
-            <input
-              value={adminTimeoutMs}
-              onChange={(e) => setAdminTimeoutMs(e.target.value)}
-              placeholder="Timeout(ms)"
-              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
-            />
-            <input
-              value={adminApiKey}
-              onChange={(e) => setAdminApiKey(e.target.value)}
-              placeholder={adminApiKeyMasked ? `当前Key: ${adminApiKeyMasked}` : 'API Key'}
-              className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400"
-            />
-          </div>
-          <button
-            onClick={saveAdminConfig}
-            className="w-full h-11 rounded-xl bg-blue-500 text-white font-bold active:scale-95 transition-transform"
-          >
-            {adminSaving ? '保存中...' : '保存配置'}
-          </button>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-900">识别接口测试</h3>
-          <div className="flex gap-3">
-            <button
-              onClick={() => adminTestFileInputRef.current?.click()}
-              className="flex-1 h-11 rounded-xl border border-gray-200 text-gray-600 font-bold active:scale-95 transition-transform"
-            >
-              选择测试图片
-            </button>
-            <button
-              onClick={runAdminAnalyze}
-              className="flex-1 h-11 rounded-xl bg-indigo-500 text-white font-bold active:scale-95 transition-transform"
-            >
-              {adminTesting ? '识别中...' : '开始识别'}
-            </button>
-          </div>
-          <input
-            type="file"
-            ref={adminTestFileInputRef}
-            onChange={handleAdminTestFileSelect}
-            accept="image/*"
-            className="hidden"
-          />
-          {adminTestImage && (
-            <div className="aspect-video bg-gray-100 rounded-2xl overflow-hidden">
-              <img src={adminTestImage} alt="test" className="w-full h-full object-cover" />
-            </div>
-          )}
-          {adminTestResult && (
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 space-y-2">
-              <p className="text-sm font-bold text-indigo-700">诊断：{adminTestResult.diagnosis}</p>
-              <p className="text-xs text-indigo-700">概率：{adminTestResult.probability}%</p>
-              <p className="text-xs text-indigo-700 leading-relaxed">{adminTestResult.description}</p>
-            </div>
-          )}
-        </div>
-
-        {adminMessage && (
-          <div className="px-4 py-3 rounded-2xl bg-blue-50 text-blue-700 text-sm font-medium">
-            {adminMessage}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1723,7 +1519,6 @@ export default function App() {
           {currentPage === 'diary' && renderDiary()}
           {currentPage === 'diary_detail' && renderDiaryDetail()}
           {currentPage === 'profile' && renderProfile()}
-          {currentPage === 'admin_ai' && renderAdminAI()}
           {currentPage === 'consultations' && renderPlaceholderPage('我的咨询', <MessageSquare size={48} />)}
           {currentPage === 'appointments' && renderPlaceholderPage('专家预约', <Calendar size={48} />)}
           {currentPage === 'settings' && renderPlaceholderPage('设置', <Settings size={48} />)}
