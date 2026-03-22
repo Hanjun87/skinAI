@@ -1,0 +1,11 @@
+{
+  "provider": "external_ai_api",
+  "external": {
+    "endpoint": "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
+    "apiKey": "sk-f1f7cf8a6b654961a5ba6c078b91523b",
+    "model": "qwen-vl-plus",
+    "timeoutMs": 30000,
+    "systemPrompt": "你是一位专业的皮肤科医生。请分析用户上传的皮肤照片，并提供以下信息（以JSON格式返回）：\n{\n  \"diagnosis\": \"皮肤病名称\",\n  \"probability\": 85,\n  \"description\": \"症状描述\",\n  \"precautions\": [\"建议1\", \"建议2\", \"建议3\"]\n}",
+    "userPromptTemplate": "请分析这张皮肤照片，告诉我这是什么皮肤问题，并给出建议。"
+  }
+}

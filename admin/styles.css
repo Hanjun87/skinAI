@@ -109,6 +109,28 @@ button.primary {
   border-color: #2563eb;
 }
 
+button.secondary {
+  background: #6b7280;
+  color: #fff;
+  border-color: #6b7280;
+}
+
+button.danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.button-group button {
+  flex: 1;
+}
+
 #testResult {
   background: #0f172a;
   color: #e2e8f0;

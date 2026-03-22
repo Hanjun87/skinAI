@@ -50,20 +50,19 @@ const normalizeOutput = (data) => {
     if (!data || typeof data !== 'object') {
         throw new Error('识别结果格式错误');
     }
-    const diagnosis = String(data.diagnosis || '').trim();
-    const probability = Number(data.probability);
-    const description = String(data.description || '').trim();
-    const precautions = Array.isArray(data.precautions)
-        ? data.precautions.map((item) => String(item).trim()).filter(Boolean)
-        : [];
-    if (!diagnosis || Number.isNaN(probability) || !description || precautions.length === 0) {
+    const rawDiagnosis = data.diagnosis || data.disease || data.name || data.title || data.疾病名称 || data.诊断;
+    const diagnosis = String(rawDiagnosis || '').trim();
+    const rawProbability = data.probability ?? data.confidence ?? data.score ?? data.概率 ?? data.置信度;
+    const probabilityNumber = typeof rawProbability === 'string'
+        ? Number(rawProbability.replace('%', '').trim())
+        : Number(rawProbability);
+    const probability = Number.isNaN(probabilityNumber) ? 85 : probabilityNumber;
+    if (!diagnosis) {
         throw new Error('识别结果字段不完整');
     }
     return {
         diagnosis,
-        probability: Math.max(0, Math.min(100, Math.round(probability))),
-        description,
-        precautions
+        probability: Math.max(0, Math.min(100, Math.round(probability)))
     };
 };
 
@@ -158,27 +157,153 @@ const analyzeByExternalApi = async (imageBase64) => {
         if (aiConfig.external.apiKey) {
             headers.Authorization = `Bearer ${aiConfig.external.apiKey}`;
         }
-        const payload = {
-            imageBase64,
-            model: aiConfig.external.model || undefined
-        };
-        if (aiConfig.external.systemPrompt) {
-            payload.systemPrompt = aiConfig.external.systemPrompt;
+
+        // 构建系统提示词
+        const systemPrompt = aiConfig.external.systemPrompt || `你是一位专业的皮肤科医生。请分析用户上传的皮肤照片，并提供以下信息（以JSON格式返回）：
+{
+  "diagnosis": "皮肤病名称",
+  "probability": 85,
+}`;
+
+        // 构建用户消息
+        const userContent = aiConfig.external.userPromptTemplate
+            ? aiConfig.external.userPromptTemplate.replace('{{image}}', '[图片]')
+            : '请分析这张皮肤照片，告诉我这是什么皮肤问题，并给出建议。';
+
+        // 判断是否为阿里云通义千问
+        const isAliyun = aiConfig.external.endpoint.includes('dashscope.aliyuncs.com');
+
+        let payload;
+        let apiUrl;
+
+        if (isAliyun) {
+            // 阿里云通义千问格式
+            // 阿里云 qwen-vl 模型支持 base64 data URL 格式
+            // 确保图片数据是完整的 data:image/jpeg;base64,xxx 格式
+            let imageUrl = imageBase64;
+            if (!imageUrl.startsWith('data:')) {
+                // 如果没有 data: 前缀，添加默认的 jpeg 前缀
+                imageUrl = `data:image/jpeg;base64,${imageUrl}`;
+            }
+            apiUrl = aiConfig.external.endpoint;
+            payload = {
+                model: aiConfig.external.model || 'qwen-vl-plus',
+                input: {
+                    messages: [
+                        {
+                            role: 'system',
+                            content: [
+                                {
+                                    type: 'text',
+                                    text: systemPrompt
+                                }
+                            ]
+                        },
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'image',
+                                    image: imageUrl
+                                },
+                                {
+                                    type: 'text',
+                                    text: userContent
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+        } else {
+            // DeepSeek/OpenAI 兼容格式
+            apiUrl = `${aiConfig.external.endpoint}/chat/completions`;
+            payload = {
+                model: aiConfig.external.model || 'deepseek-chat',
+                messages: [
+                    {
+                        role: 'system',
+                        content: systemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: userContent
+                            },
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageBase64
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens: 8192,
+                temperature: 0.7
+            };
         }
-        if (aiConfig.external.userPromptTemplate) {
-            payload.userPromptTemplate = aiConfig.external.userPromptTemplate;
-        }
-        const response = await fetch(aiConfig.external.endpoint, {
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers,
             body: JSON.stringify(payload),
             signal: controller.signal
         });
+
         if (!response.ok) {
+            const errorData = await response.text();
+            console.error('AI API Error:', errorData);
             throw new Error(`外部AI接口调用失败(${response.status})`);
         }
+
         const result = await response.json();
-        return normalizeOutput(result);
+
+        // 解析 AI 返回的内容
+        let content;
+        if (isAliyun) {
+            // 阿里云格式
+            const aliContent = result.output?.choices?.[0]?.message?.content;
+            if (Array.isArray(aliContent)) {
+                // 找到文本内容
+                const textItem = aliContent.find(item => item.text);
+                content = textItem ? textItem.text : JSON.stringify(aliContent);
+            } else {
+                content = aliContent;
+            }
+        } else {
+            // OpenAI/DeepSeek 格式
+            content = result.choices?.[0]?.message?.content;
+        }
+
+        if (!content) {
+            throw new Error('AI 返回结果为空');
+        }
+
+        // 尝试从内容中提取 JSON
+        let parsedData;
+        try {
+            // 先尝试直接解析
+            parsedData = JSON.parse(content);
+        } catch {
+            // 尝试从 markdown 代码块中提取
+            const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+                parsedData = JSON.parse(jsonMatch[1]);
+            } else {
+                // 尝试匹配 JSON 对象
+                const objMatch = content.match(/\{[\s\S]*\}/);
+                if (objMatch) {
+                    parsedData = JSON.parse(objMatch[0]);
+                } else {
+                    throw new Error('无法解析 AI 返回的结果');
+                }
+            }
+        }
+
+        return normalizeOutput(parsedData);
     } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
             throw new Error('外部AI接口超时');

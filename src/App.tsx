@@ -50,16 +50,12 @@ interface Record {
   status: '恢复中' | '待复查' | '已结束';
   image: string;
   probability: number;
-  description: string;
-  precautions: string[];
   typicalImage: string;
 }
 
 interface AnalysisResult {
   diagnosis: string;
   probability: number;
-  description: string;
-  precautions: string[];
   typicalImage: string;
   userImage: string;
 }
@@ -183,15 +179,21 @@ export default function App() {
         })
       });
       if (!response.ok) {
-        throw new Error('识别服务不可用');
+        let errorMessage = '识别服务不可用';
+        try {
+          const errorData = await response.json();
+          if (typeof errorData?.message === 'string' && errorData.message.trim()) {
+            errorMessage = errorData.message;
+          }
+        } catch {
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
 
       setAnalysisResult({
         diagnosis: data.diagnosis,
         probability: data.probability,
-        description: data.description,
-        precautions: data.precautions,
         userImage: base64Image,
         typicalImage: base64Image
       });
@@ -199,7 +201,7 @@ export default function App() {
     } catch (error) {
       console.error("Analysis failed:", error);
       setCurrentPage('home');
-      window.alert('识别失败，请稍后重试');
+      window.alert(error instanceof Error ? error.message : '识别失败，请稍后重试');
     } finally {
       setIsAnalyzing(false);
     }
@@ -223,8 +225,6 @@ export default function App() {
       status: '待复查',
       image: analysisResult.userImage,
       probability: analysisResult.probability,
-      description: analysisResult.description,
-      precautions: analysisResult.precautions,
       typicalImage: analysisResult.typicalImage
     };
     setRecords(prev => [newRecord, ...prev]);
@@ -483,10 +483,10 @@ export default function App() {
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-blue-500 rounded-full" />
-            <h3 className="font-bold text-gray-900">症状简述</h3>
+            <h3 className="font-bold text-gray-900">结果说明</h3>
           </div>
           <p className="text-gray-500 text-sm leading-relaxed">
-            {analysisResult?.description}
+            当前模型仅返回疾病名称与置信度。识别结果为 {analysisResult?.diagnosis}，置信度 {analysisResult?.probability}%，请结合临床检查进一步确认。
           </p>
         </div>
 
@@ -514,15 +514,17 @@ export default function App() {
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-blue-500 rounded-full" />
-            <h3 className="font-bold text-gray-900">AI 建议</h3>
+            <h3 className="font-bold text-gray-900">健康建议</h3>
           </div>
           <ul className="space-y-4">
-            {analysisResult?.precautions.map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <CheckCircle2 size={16} className="text-blue-500 shrink-0 mt-0.5" />
-                <span className="text-gray-500 text-sm">{item}</span>
-              </li>
-            ))}
+            <li className="flex items-start gap-3">
+              <CheckCircle2 size={16} className="text-blue-500 shrink-0 mt-0.5" />
+              <span className="text-gray-500 text-sm">保持患处清洁干燥，避免抓挠与刺激。</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <CheckCircle2 size={16} className="text-blue-500 shrink-0 mt-0.5" />
+              <span className="text-gray-500 text-sm">若症状持续或加重，请尽快就医。</span>
+            </li>
           </ul>
         </div>
 
@@ -636,7 +638,7 @@ export default function App() {
             </div>
           </div>
           <p className="text-gray-600 text-sm leading-relaxed mb-4">
-            {selectedRecord?.description}
+            当前记录仅保存疾病名称与置信度。此次识别为 {selectedRecord?.title}，建议结合线下面诊结果综合判断。
           </p>
           <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
             <p className="text-[10px] text-gray-400 font-bold mb-2 uppercase">AI Analysis Summary</p>
@@ -674,17 +676,21 @@ export default function App() {
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1 h-5 bg-blue-500 rounded-full" />
-            <h3 className="font-bold text-gray-900">AI 建议</h3>
+            <h3 className="font-bold text-gray-900">健康建议</h3>
           </div>
           <div className="space-y-4">
-            {selectedRecord?.precautions.map((item, i) => (
-              <div key={i} className="flex items-start gap-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
-                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                  {i + 1}
-                </div>
-                <span className="text-gray-700 text-sm font-medium">{item}</span>
+            <div className="flex items-start gap-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                1
               </div>
-            ))}
+              <span className="text-gray-700 text-sm font-medium">持续观察 {selectedRecord?.title} 相关变化，避免刺激患处。</span>
+            </div>
+            <div className="flex items-start gap-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                2
+              </div>
+              <span className="text-gray-700 text-sm font-medium">若短期内出现扩散、出血或明显加重，请及时就医复查。</span>
+            </div>
           </div>
         </div>
 

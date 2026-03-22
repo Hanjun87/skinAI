@@ -13,6 +13,8 @@ const el = {
   refreshBtn: document.getElementById('refreshBtn'),
   saveBtn: document.getElementById('saveBtn'),
   runTestBtn: document.getElementById('runTestBtn'),
+  testConnectBtn: document.getElementById('testConnectBtn'),
+  resetConfigBtn: document.getElementById('resetConfigBtn'),
   endpoint: document.getElementById('endpoint'),
   model: document.getElementById('model'),
   timeoutMs: document.getElementById('timeoutMs'),
@@ -115,12 +117,77 @@ const runTest = async () => {
   }
 };
 
+const testConnectivity = async () => {
+  setMessage('正在检测联通性...');
+  try {
+    const data = await fetchJson('/api/admin/ai/config');
+    const endpoint = data.external?.endpoint || '';
+    const model = data.external?.model || '';
+    if (!endpoint) {
+      setMessage('错误: API 接口地址未配置');
+      return;
+    }
+    const isAliyun = endpoint.includes('dashscope.aliyuncs.com');
+    const testUrl = isAliyun ? endpoint : `${endpoint}/chat/completions`;
+    const testPayload = isAliyun
+      ? { model: model || 'qwen-vl-plus', input: { messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }] } }
+      : { model: model || 'gpt-3.5-turbo', messages: [{ role: 'user', content: 'Hello' }], max_tokens: 5 };
+    const startTime = Date.now();
+    const response = await fetch(testUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(data.external?.apiKeyMasked ? { 'Authorization': `Bearer ${el.apiKey.value || 'use-saved-key'}` } : {})
+      },
+      body: JSON.stringify(testPayload)
+    });
+    const elapsed = Date.now() - startTime;
+    if (response.ok) {
+      setMessage(`联通性检测成功 (${elapsed}ms) - API 可正常访问`);
+    } else {
+      const errorText = await response.text();
+      setMessage(`联通性检测失败 (${response.status}): ${errorText.slice(0, 100)}`);
+    }
+  } catch (error) {
+    setMessage(`联通性检测失败: ${error instanceof Error ? error.message : '网络错误'}`);
+  }
+};
+
+const resetConfig = async () => {
+  if (!confirm('确定要重置 API 配置吗？这将清除所有已保存的配置。')) {
+    return;
+  }
+  try {
+    await fetchJson('/api/admin/ai/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'external_ai_api',
+        external: {
+          endpoint: '',
+          model: '',
+          timeoutMs: 20000,
+          systemPrompt: '',
+          userPromptTemplate: '',
+          apiKey: ''
+        }
+      })
+    });
+    setMessage('配置已重置');
+    await loadConfig();
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : '重置失败');
+  }
+};
+
 el.menus.forEach((btn) => {
   btn.addEventListener('click', () => switchMenu(btn.dataset.menu));
 });
 el.refreshBtn.addEventListener('click', loadConfig);
 el.saveBtn.addEventListener('click', saveConfig);
 el.runTestBtn.addEventListener('click', runTest);
+el.testConnectBtn.addEventListener('click', testConnectivity);
+el.resetConfigBtn.addEventListener('click', resetConfig);
 el.testImage.addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
