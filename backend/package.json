@@ -1,0 +1,15 @@
+{
+  "name": "@skinai/backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node -e \"console.log('backend: no build step')\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}

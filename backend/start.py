@@ -29,12 +29,12 @@ def main():
     print('=' * 50)
     
     services = [
-        ('后端 API', ['npm', 'run', 'dev:api'], 8787),
-        ('前端应用', ['npm', 'run', 'dev'], 3000),
-        ('后台管理', ['npm', 'run', 'dev:admin'], 8788),
+        ('前端应用', ['npm', 'run', 'dev'], '../frontend', 3000),
+        ('后端 API', ['npm', 'run', 'dev:api'], '../frontend', 8787),
+        ('后台管理', ['npm', 'run', 'dev:admin'], '../frontend', 8788),
     ]
     
-    for name, cmd, port in services:
+    for name, cmd, cwd, port in services:
         print(f'启动 {name} (端口 {port})...')
         try:
             p = subprocess.Popen(
@@ -43,7 +43,8 @@ def main():
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                shell=True
+                shell=True,
+                cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), cwd)
             )
             processes.append(p)
             time.sleep(1)
