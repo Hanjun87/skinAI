@@ -4,6 +4,7 @@ import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
+  const proxyTarget = process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:8788';
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -15,7 +16,7 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       proxy: {
         '/api': {
-          target: 'http://localhost:8787',
+          target: proxyTarget,
           changeOrigin: true,
         },
       },

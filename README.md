@@ -4,33 +4,49 @@
 
 # SkinAI
 
+## 项目结构
+
+- `apps/web`：React + Vite 用户端
+- `backend`：Node.js 兼容层，对旧接口做转发
+- `services/django`：Django 主后端，负责管理后台、AI 配置、皮肤识别与 PostgreSQL 数据
+
 ## Run Locally
 
-**Prerequisites:** Node.js
+**Prerequisites:** Node.js、Python 3.11+、PostgreSQL
 
-
-1. Install dependencies:
+1. 安装前端与后端依赖：
    `npm install`
-2. Run backend API:
-   `npm run dev:api`
-3. Run frontend:
-   `npm run dev`
-4. Run admin frontend (separate window/port):
+2. 安装 Django 依赖：
+   `python -m pip install -r services/django/requirements.txt`
+3. 配置根目录 `.env` 中的 PostgreSQL 与外部 AI 参数
+4. 初始化 PostgreSQL 表并创建默认管理员：
+   `npm run setup:commercial`
+5. 启动用户前端：
+   `npm run dev:web`
+6. 启动 Django 主后端：
    `npm run dev:admin`
+7. 启动 Node 兼容层：
+   `npm run dev:api`
 
-## 独立后台管理
+也可以直接运行根目录启动器：
 
-- 后台地址：`http://localhost:8788`
-- 后台与 App 前端分离，不再内嵌在移动应用页面中
-- 后台默认调用 API：`http://localhost:8787`（可用 `ADMIN_API_BASE_URL` 覆盖）
+`python start.py`
+
+## Django 管理控制台
+
+- 控制台地址：`http://localhost:8788/dashboard/`
+- Django 后台地址：`http://localhost:8788/admin/`
+- 登录地址：`http://localhost:8788/login/`
+- 默认管理员账号按当前需求初始化为 `admin / admin`
+- AI 配置与识别逻辑都在 Django 中，Node 仅保留兼容转发
+- Django Admin 可直接管理 AI 配置和识别记录
 
 ## PostgreSQL 配置
 
-- 支持两种连接方式：
-  - `DATABASE_URL`
-  - `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE`
-- AI 后台配置（接口地址、模型、提示词等）写入 PostgreSQL 表：`ai_admin_config`
-- 若未配置 PostgreSQL，服务会使用环境变量默认值并提示警告
+- Django 与 Node 共用同一套 PostgreSQL 连接变量
+- Django 使用 PostgreSQL 作为唯一数据库，不再使用 SQLite
+- AI 配置、识别记录、账号体系都由 Django 管理
+- 建议在生产环境把默认管理员密码与 Django Secret Key 改成独立安全值
 
 ## Android Build (APK)
 
@@ -45,5 +61,5 @@
 
 - Web deployment can keep `VITE_API_BASE_URL` empty.
 - Android app should set `VITE_API_BASE_URL` to a reachable backend URL before build, for example:
-  - emulator: `http://10.0.2.2:8787`
-  - LAN backend: `http://<your-lan-ip>:8787`
+  - emulator: `http://10.0.2.2:8788`
+  - LAN backend: `http://<your-lan-ip>:8788`

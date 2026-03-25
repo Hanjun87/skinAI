@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, FileText, BookOpen, User, Users } from 'lucide-react';
+import { Camera, FileText, User, Users } from 'lucide-react';
 import { Page } from '../../types';
 
 export const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavigate: (p: Page) => void }) => {
@@ -7,7 +7,6 @@ export const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavi
     { id: 'home', label: '识别', icon: <Camera size={24} /> },
     { id: 'records', label: '档案', icon: <FileText size={24} /> },
     { id: 'community', label: '社区', icon: <Users size={24} /> },
-    { id: 'diary', label: '日记', icon: <BookOpen size={24} /> },
     { id: 'profile', label: '我的', icon: <User size={24} /> },
   ];
 

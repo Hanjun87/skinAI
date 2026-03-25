@@ -11,8 +11,7 @@ import Analysis from './pages/Home/Analysis';
 import Result from './pages/Home/Result';
 import RecordsPage from './pages/Records';
 import RecordDetailPage from './pages/Records/RecordDetail';
-import DiaryPage from './pages/Diary';
-import DiaryDetailPage from './pages/Diary/DiaryDetail';
+
 import ProfilePage from './pages/Profile';
 import PlaceholderPage from './pages/Profile/PlaceholderPage';
 import { CommunityFeed } from './pages/Community/CommunityFeed';
@@ -32,12 +31,12 @@ export default function App() {
 
   const setCurrentPage = (page: Page) => {
     const levels: { [key in Page]: number } = {
-      home: 0, records: 0, community: 0, diary: 0, profile: 0,
-      camera: 1, analysis: 1, result: 1, record_detail: 1, diary_detail: 1,
+      home: 0, records: 0, community: 0, profile: 0,
+      camera: 1, analysis: 1, result: 1, record_detail: 1,
       consultations: 1, appointments: 1, settings: 1, about: 1,
       community_post_detail: 1, community_expert: 1, community_create: 1
     };
-    const tabs: Page[] = ['home', 'records', 'community', 'diary', 'profile'];
+    const tabs: Page[] = ['home', 'records', 'community', 'profile'];
 
     const fromLevel = levels[currentPage];
     const toLevel = levels[page];
@@ -61,20 +60,10 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [records, setRecords] = useState<Record[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<Record | null>(null);
-  const [selectedDiaryRecord, setSelectedDiaryRecord] = useState<any | null>(null);
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Diary states
-  const [uvLevel, setUvLevel] = useState(3);
-  const [selectedProtections, setSelectedProtections] = useState<string[]>(['防晒霜']);
-  const [skinTone, setSkinTone] = useState(30);
-  const [skinFeeling, setSkinFeeling] = useState<string>('正常');
-  const [waterIntake, setWaterIntake] = useState(4);
-  const [sleepQuality, setSleepQuality] = useState<string>('良好');
-  const [isSavingDiary, setIsSavingDiary] = useState(false);
-  const [isAddingDiary, setIsAddingDiary] = useState(false);
 
-  const [diaryRecords, setDiaryRecords] = useState<any[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -308,33 +297,7 @@ export default function App() {
           {currentPage === 'record_detail' && (
             <RecordDetailPage record={selectedRecord} onBack={() => setCurrentPage('records')} />
           )}
-          {currentPage === 'diary' && (
-            <DiaryPage
-              uvLevel={uvLevel}
-              setUvLevel={(v) => setUvLevel(v)}
-              selectedProtections={selectedProtections}
-              setSelectedProtections={(v) => setSelectedProtections(v)}
-              skinTone={skinTone}
-              setSkinTone={(v) => setSkinTone(v)}
-              skinFeeling={skinFeeling}
-              setSkinFeeling={(v) => setSkinFeeling(v)}
-              waterIntake={waterIntake}
-              setWaterIntake={(v) => setWaterIntake(v)}
-              sleepQuality={sleepQuality}
-              setSleepQuality={(v) => setSleepQuality(v)}
-              isSavingDiary={isSavingDiary}
-              setIsSavingDiary={(v) => setIsSavingDiary(v)}
-              isAddingDiary={isAddingDiary}
-              setIsAddingDiary={(v) => setIsAddingDiary(v)}
-              diaryRecords={diaryRecords}
-              setDiaryRecords={(v) => setDiaryRecords(v)}
-              setSelectedDiaryRecord={(v) => setSelectedDiaryRecord(v)}
-              onNavigate={setCurrentPage}
-            />
-          )}
-          {currentPage === 'diary_detail' && (
-            <DiaryDetailPage record={selectedDiaryRecord} onBack={() => setCurrentPage('diary')} />
-          )}
+
           {currentPage === 'profile' && <ProfilePage onNavigate={setCurrentPage} />}
           {currentPage === 'consultations' && (
             <PlaceholderPage title="我的咨询" icon={<MessageSquare size={48} />} onBack={() => setCurrentPage('profile')} />
@@ -355,7 +318,7 @@ export default function App() {
         </motion.div>
       </AnimatePresence>
 
-      {['home', 'records', 'diary', 'profile', 'community'].includes(currentPage) && (
+      {['home', 'records', 'profile', 'community'].includes(currentPage) && (
         <BottomNav activePage={currentPage} onNavigate={setCurrentPage} />
       )}
     </div>

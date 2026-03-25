@@ -10,11 +10,16 @@
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=backend",
-    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:django": "python services/django/bootstrap.py runserver 0.0.0.0:8788",
+    "dev:admin": "npm run dev:django",
     "dev:backend": "npm run dev --workspace=backend",
     "build:web": "npm run build --workspace=apps/web",
-    "build:admin": "npm run build --workspace=apps/admin",
+    "build:admin": "python services/django/bootstrap.py check",
     "build:backend": "npm run build --workspace=backend",
+    "migrate:admin": "python services/django/bootstrap.py migrate",
+    "bootstrap:admin": "python services/django/bootstrap.py bootstrap_admin",
+    "createsuperuser:admin": "python services/django/bootstrap.py createsuperuser",
+    "setup:commercial": "python services/django/bootstrap.py migrate && python services/django/bootstrap.py bootstrap_admin",
     "lint": "npm run lint --workspaces",
     "clean": "rm -rf apps/*/dist apps/*/.vite packages/*/dist backend/dist"
   }
