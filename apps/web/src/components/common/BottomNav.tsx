@@ -17,7 +17,8 @@ export const BottomNav = ({ activePage, onNavigate }: { activePage: Page, onNavi
           key={item.id}
           onClick={() => onNavigate(item.id)}
           className={`flex flex-col items-center gap-1 transition-colors ${(activePage === item.id ||
-            (item.id === 'profile' && ['consultations', 'appointments', 'settings', 'about'].includes(activePage)))
+            (item.id === 'profile' && ['consultations', 'appointments', 'settings', 'about'].includes(activePage)) ||
+            (item.id === 'records' && ['diary', 'history'].includes(activePage)))
             ? 'text-blue-500' : 'text-gray-400'
             }`}
         >

@@ -11,6 +11,8 @@ import Analysis from './pages/Home/Analysis';
 import Result from './pages/Home/Result';
 import RecordsPage from './pages/Records';
 import RecordDetailPage from './pages/Records/RecordDetail';
+import { DiaryEntry } from './pages/Records/DiaryEntry';
+import { History } from './pages/Records/History';
 
 import ProfilePage from './pages/Profile';
 import PlaceholderPage from './pages/Profile/PlaceholderPage';
@@ -20,6 +22,7 @@ import { ExpertColumn } from './pages/Community/ExpertColumn';
 import { CreatePost } from './pages/Community/CreatePost';
 import { Page, Record, AnalysisResult } from './types';
 import { BottomNav } from './components/common/BottomNav';
+import { MessageSquare, Calendar, Settings, Info } from 'lucide-react';
 
 // --- Main App ---
 
@@ -34,7 +37,8 @@ export default function App() {
       home: 0, records: 0, community: 0, profile: 0,
       camera: 1, analysis: 1, result: 1, record_detail: 1,
       consultations: 1, appointments: 1, settings: 1, about: 1,
-      community_post_detail: 1, community_expert: 1, community_create: 1
+      community_post_detail: 1, community_expert: 1, community_create: 1,
+      diary: 1, history: 1
     };
     const tabs: Page[] = ['home', 'records', 'community', 'profile'];
 
@@ -62,6 +66,7 @@ export default function App() {
   const [selectedRecord, setSelectedRecord] = useState<Record | null>(null);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSavingDiary, setIsSavingDiary] = useState(false);
 
 
 
@@ -250,7 +255,7 @@ export default function App() {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen bg-white shadow-2xl relative overflow-hidden font-sans">
+    <div className="max-w-md mx-auto h-screen bg-white shadow-2xl relative overflow-y-auto font-sans">
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={currentPage}
@@ -259,7 +264,7 @@ export default function App() {
           animate="animate"
           exit="exit"
           variants={pageVariants}
-          className="h-full"
+          className="min-h-screen"
         >
           {currentPage === 'home' && <Home onNavigate={setCurrentPage} />}
           {currentPage === 'camera' && (
@@ -292,10 +297,17 @@ export default function App() {
                 setSelectedRecord(r);
                 setCurrentPage('record_detail');
               }}
+              onNavigate={setCurrentPage}
             />
           )}
           {currentPage === 'record_detail' && (
             <RecordDetailPage record={selectedRecord} onBack={() => setCurrentPage('records')} />
+          )}
+          {currentPage === 'diary' && (
+            <DiaryEntry onNavigate={setCurrentPage} />
+          )}
+          {currentPage === 'history' && (
+            <History onNavigate={setCurrentPage} />
           )}
 
           {currentPage === 'profile' && <ProfilePage onNavigate={setCurrentPage} />}
@@ -318,7 +330,7 @@ export default function App() {
         </motion.div>
       </AnimatePresence>
 
-      {['home', 'records', 'profile', 'community'].includes(currentPage) && (
+      {['home', 'records', 'profile', 'community', 'diary', 'history'].includes(currentPage) && (
         <BottomNav activePage={currentPage} onNavigate={setCurrentPage} />
       )}
     </div>

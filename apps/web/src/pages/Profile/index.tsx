@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, ChevronRight, Info, MessageSquare, Scan, Settings } from 'lucide-react';
-import { Page } from '../types';
+import { Page } from '../../types';
 
 export default function Profile({ onNavigate }: { onNavigate: (p: Page) => void }) {
   return (
