@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SkinAI</string>
-    <string name="title_activity_main">SkinAI</string>
-    <string name="package_name">com.skinai.app</string>
-    <string name="custom_url_scheme">com.skinai.app</string>
+    <string name="app_name">知己肤</string>
+    <string name="title_activity_main">知己肤</string>
+    <string name="package_name">com.zhijifu.app</string>
+    <string name="custom_url_scheme">com.zhijifu.app</string>
 </resources>

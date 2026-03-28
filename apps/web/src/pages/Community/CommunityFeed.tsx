@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Search, Plus } from 'lucide-react';
 import { Page } from '../../types';
 import { MOCK_POSTS } from './constants';
@@ -15,7 +16,7 @@ export const CommunityFeed = ({ onNavigate }: { onNavigate: (p: Page) => void })
 
   return (
     <div className="pb-20 bg-gray-50 h-full overflow-y-auto">
-      <header className="sticky top-0 left-0 right-0 bg-white/80 backdrop-blur-xl z-40 px-6 py-3 shadow-sm pt-8">
+      <header className="sticky top-0 left-0 right-0 bg-white/80 backdrop-blur-2xl z-40 px-6 py-3 shadow-sm pt-8 border-b border-white/60">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-900">皮肤健康社区</h1>
           <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
@@ -33,7 +34,7 @@ export const CommunityFeed = ({ onNavigate }: { onNavigate: (p: Page) => void })
       </header>
 
       <main className="pt-6 px-6">
-        <section className="mb-8">
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }} className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900">分类导航</h2>
             <span className="text-blue-600 text-sm font-semibold">查看全部</span>
@@ -56,28 +57,30 @@ export const CommunityFeed = ({ onNavigate }: { onNavigate: (p: Page) => void })
               <span className="text-sm font-semibold">专家专栏</span>
             </div>
           </div>
-        </section>
+        </motion.section>
 
-        <nav className="flex gap-8 mb-6 border-b border-transparent">
+        <motion.nav initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.05, ease: [0.22, 1, 0.36, 1] }} className="mb-6 flex gap-8 border-b border-transparent">
           <button className="pb-2 text-blue-600 border-b-2 border-blue-600 font-bold">热门</button>
           <button className="pb-2 text-gray-400 font-medium">最新</button>
-        </nav>
+        </motion.nav>
 
-        <div className="space-y-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.42, delay: 0.08 }} className="space-y-4">
           {MOCK_POSTS.map(post => (
             <div key={post.id} onClick={() => onNavigate('community_post_detail')}>
               <PostCard post={post} />
             </div>
           ))}
-        </div>
+        </motion.div>
       </main>
 
-      <button 
+      <motion.button 
         onClick={() => onNavigate('community_create')}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-40 active:scale-95 transition-transform"
+        whileHover={{ scale: 1.04, y: -3 }}
+        whileTap={{ scale: 0.94 }}
+        className="fixed bottom-28 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_18px_48px_rgba(37,99,235,0.36)]"
       >
         <Plus size={28} />
-      </button>
+      </motion.button>
     </div>
   );
 };

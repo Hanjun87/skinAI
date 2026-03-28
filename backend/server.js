@@ -48,7 +48,7 @@ app.post('/api/admin/ai/analyze', (req, res) => proxyJson(req, res, '/api/admin/
 
 const start = async () => {
     app.listen(port, () => {
-        console.log(`SkinAI compatibility API running at http://localhost:${port}`);
+        console.log(`知己肤 compatibility API running at http://localhost:${port}`);
         console.log(`Proxying requests to Django at ${djangoApiBaseUrl}`);
     });
 };

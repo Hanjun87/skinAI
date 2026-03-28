@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { ChevronRight, Scan, Search, Eye, Plus } from 'lucide-react';
 import { Record as SkinRecord } from '../../types';
 import { cn } from '../../lib/utils';
@@ -56,7 +57,7 @@ export default function Records({
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-24">
-      <header className="p-6 flex items-center justify-center bg-white sticky top-0 z-10 border-b border-gray-100">
+      <header className="sticky top-0 z-10 flex items-center justify-center border-b border-white/60 bg-white/85 p-6 backdrop-blur-xl">
         <h2 className="text-lg font-bold text-gray-900">健康档案</h2>
         <button 
           onClick={() => onNavigate('history')}
@@ -92,16 +93,26 @@ export default function Records({
           <>
             <section className="mb-6">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">最近记录</h3>
-              <div className="space-y-3">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.28 }}
+                className="space-y-3"
+              >
                 {allRecords.slice(0, 2).map((record) => (
                   <RecordCard key={record.id} record={record} onSelect={onSelect} />
                 ))}
-              </div>
+              </motion.div>
             </section>
 
             <section>
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">更早记录</h3>
-              <div className="space-y-3">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.28, delay: 0.06 }}
+                className="space-y-3"
+              >
                 {allRecords.slice(2).map((record) => (
                   <RecordCard key={record.id} record={record} onSelect={onSelect} />
                 ))}
@@ -116,18 +127,20 @@ export default function Records({
                     onSelect={onSelect} 
                   />
                 ))}
-              </div>
+              </motion.div>
             </section>
           </>
         )}
       </div>
 
-      <button 
+      <motion.button 
         onClick={() => onNavigate('diary')}
-        className="fixed right-6 bottom-24 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform z-40"
+        whileHover={{ scale: 1.04, y: -3 }}
+        whileTap={{ scale: 0.94 }}
+        className="fixed bottom-28 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_18px_48px_rgba(37,99,235,0.38)]"
       >
         <Plus size={32} />
-      </button>
+      </motion.button>
     </div>
   );
 }
@@ -145,9 +158,14 @@ const RecordCard: React.FC<RecordCardProps> = ({ record, onSelect }) => {
   };
 
   return (
-    <button
+    <motion.button
       onClick={() => onSelect(record)}
-      className="w-full flex items-center gap-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-left"
+      initial={{ opacity: 0, y: 16, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileHover={{ y: -2, scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      className="w-full flex items-center gap-4 rounded-[22px] border border-white/70 bg-white/90 p-3 text-left shadow-[0_18px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl"
     >
       <img src={record.image} alt={record.title} className="w-16 h-16 rounded-lg object-cover border border-gray-100" referrerPolicy="no-referrer" />
       <div className="flex-1 min-w-0">
@@ -162,6 +180,6 @@ const RecordCard: React.FC<RecordCardProps> = ({ record, onSelect }) => {
         </div>
       </div>
       <ChevronRight size={20} className="text-gray-300" />
-    </button>
+    </motion.button>
   );
 };

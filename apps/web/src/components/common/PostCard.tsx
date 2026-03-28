@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Post } from '../../pages/Community/types';
 import { Heart, MessageCircle, Share2, MoreHorizontal } from 'lucide-react';
 
@@ -8,7 +9,13 @@ interface PostCardProps {
 
 export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   return (
-    <article className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer">
+    <motion.article
+      initial={{ opacity: 0, y: 18, scale: 0.99 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileHover={{ y: -3, scale: 1.01 }}
+      transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+      className="cursor-pointer rounded-[26px] border border-white/70 bg-white/90 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl"
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full bg-gray-100" />
@@ -58,6 +65,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <Share2 size={18} />
         </button>
       </div>
-    </article>
+    </motion.article>
   );
 };

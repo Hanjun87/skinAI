@@ -1,5 +1,5 @@
 {
-  "name": "SkinAI - 皮肤健康AI助手",
+  "name": "知己肤 - 皮肤健康AI助手",
   "description": "基于AI技术的皮肤健康检测与管理助手，提供拍照识别、健康档案、护肤日记等功能。",
   "requestFramePermissions": [
     "camera"

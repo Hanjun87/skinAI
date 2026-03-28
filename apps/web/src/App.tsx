@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import Home from './pages/Home';
 import CameraPage from './pages/Home/Camera';
 import Analysis from './pages/Home/Analysis';
@@ -20,50 +20,57 @@ import { CommunityFeed } from './pages/Community/CommunityFeed';
 import { PostDetail } from './pages/Community/PostDetail';
 import { ExpertColumn } from './pages/Community/ExpertColumn';
 import { CreatePost } from './pages/Community/CreatePost';
-import { Page, Record, AnalysisResult } from './types';
+import { Page, Record as SkinRecord, AnalysisResult } from './types';
 import { BottomNav } from './components/common/BottomNav';
 import { MessageSquare, Calendar, Settings, Info } from 'lucide-react';
+import { cn } from './lib/utils';
+import { getPageTransition, isTabPage, pagePresenceMode, resolveTransition } from './lib/transitions';
 
 // --- Main App ---
 
 export default function App() {
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   const buildApiUrl = (path: string) => `${apiBaseUrl}${path}`;
+  const primaryTabs: Page[] = ['home', 'records', 'community', 'profile'];
+  const pageRootMap: Record<Page, Page> = {
+    home: 'home',
+    camera: 'home',
+    analysis: 'home',
+    result: 'home',
+    records: 'records',
+    record_detail: 'records',
+    diary: 'records',
+    history: 'records',
+    community: 'community',
+    community_post_detail: 'community',
+    community_expert: 'community',
+    community_create: 'community',
+    profile: 'profile',
+    consultations: 'profile',
+    appointments: 'profile',
+    settings: 'profile',
+    about: 'profile',
+  };
   const [currentPage, _setCurrentPage] = useState<Page>('home');
-  const [direction, setDirection] = useState(0); // 1: forward/right, -1: back/left
+  const reducedMotion = useReducedMotion();
+  const [transitionState, setTransitionState] = useState(() => resolveTransition('home', 'home'));
+
+  const getRootTab = (page: Page) => pageRootMap[page] ?? 'home';
 
   const setCurrentPage = (page: Page) => {
-    const levels: { [key in Page]: number } = {
-      home: 0, records: 0, community: 0, profile: 0,
-      camera: 1, analysis: 1, result: 1, record_detail: 1,
-      consultations: 1, appointments: 1, settings: 1, about: 1,
-      community_post_detail: 1, community_expert: 1, community_create: 1,
-      diary: 1, history: 1
-    };
-    const tabs: Page[] = ['home', 'records', 'community', 'profile'];
-
-    const fromLevel = levels[currentPage];
-    const toLevel = levels[page];
-
-    if (toLevel > fromLevel) {
-      setDirection(1); // Slide in from right
-    } else if (toLevel < fromLevel) {
-      setDirection(-1); // Slide in from left
-    } else if (toLevel === 0 && fromLevel === 0) {
-      const fromIdx = tabs.indexOf(currentPage);
-      const toIdx = tabs.indexOf(page);
-      setDirection(toIdx > fromIdx ? 1 : -1);
-    } else {
-      setDirection(0);
+    if (page === currentPage) {
+      return;
     }
-
+    const currentRootTab = getRootTab(currentPage);
+    const nextRootTab = getRootTab(page);
+    setTransitionState(resolveTransition(currentPage, page));
     _setCurrentPage(page);
   };
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [records, setRecords] = useState<Record[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<Record | null>(null);
+  const [records, setRecords] = useState<SkinRecord[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<SkinRecord | null>(null);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSavingDiary, setIsSavingDiary] = useState(false);
@@ -140,7 +147,7 @@ export default function App() {
       return;
     }
     setIsSavingDiary(true);
-    const newRecord: Record = {
+    const newRecord: SkinRecord = {
       id: Date.now().toString(),
       title: analysisResult.diagnosis,
       date: new Date().toLocaleString('zh-CN', {
@@ -234,105 +241,158 @@ export default function App() {
 
   // --- Render Helpers ---
 
-  const pageVariants = {
-    initial: (direction: number) => ({
-      opacity: 0,
-      x: direction > 0 ? 30 : direction < 0 ? -30 : 0,
-      scale: direction === 0 ? 0.98 : 1
-    }),
-    animate: {
-      opacity: 1,
-      x: 0,
-      scale: 1,
-      transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] }
-    },
-    exit: (direction: number) => ({
-      opacity: 0,
-      x: direction > 0 ? -30 : direction < 0 ? 30 : 0,
-      scale: direction === 0 ? 0.98 : 1,
-      transition: { duration: 0.25, ease: "easeInOut" }
-    })
+  const pageTransition = getPageTransition(transitionState.kind, transitionState.direction, Boolean(reducedMotion));
+  const immersivePage = ['camera', 'analysis', 'result'].includes(currentPage);
+  const activeRootTab = getRootTab(currentPage);
+  const activeRootTabIndex = primaryTabs.indexOf(activeRootTab);
+  const overlayPageVisible = !isTabPage(currentPage);
+  const shellClassName = cn(
+    'relative mx-auto h-screen max-w-md overflow-hidden font-sans shadow-[0_24px_80px_rgba(15,23,42,0.18)]',
+    immersivePage
+      ? 'bg-slate-950 text-white'
+      : 'bg-[radial-gradient(circle_at_top,#eff6ff_0%,#ffffff_36%,#f8fafc_100%)]'
+  );
+
+  const renderPrimaryTab = (page: Page) => {
+    if (page === 'home') {
+      return <Home onNavigate={setCurrentPage} />;
+    }
+    if (page === 'records') {
+      return (
+        <RecordsPage
+          records={records}
+          onSelect={(r) => {
+            setSelectedRecord(r);
+            setCurrentPage('record_detail');
+          }}
+          onNavigate={setCurrentPage}
+        />
+      );
+    }
+    if (page === 'community') {
+      return <CommunityFeed onNavigate={setCurrentPage} />;
+    }
+    return <ProfilePage onNavigate={setCurrentPage} />;
+  };
+
+  const renderOverlayPage = () => {
+    if (currentPage === 'camera') {
+      return (
+        <CameraPage
+          videoRef={videoRef}
+          canvasRef={canvasRef}
+          fileInputRef={fileInputRef}
+          cameraReady={cameraReady}
+          cameraError={cameraError}
+          cameraLoading={cameraLoading}
+          startCamera={startCamera}
+          takePhoto={takePhoto}
+          onNavigate={setCurrentPage}
+          onFileSelect={handleFileSelect}
+        />
+      );
+    }
+    if (currentPage === 'analysis') {
+      return <Analysis capturedImage={capturedImage} />;
+    }
+    if (currentPage === 'result') {
+      return (
+        <Result
+          analysisResult={analysisResult}
+          isSavingDiary={isSavingDiary}
+          onSaveRecord={handleSaveRecord}
+          onNavigate={setCurrentPage}
+        />
+      );
+    }
+    if (currentPage === 'record_detail') {
+      return <RecordDetailPage record={selectedRecord} onBack={() => setCurrentPage('records')} />;
+    }
+    if (currentPage === 'diary') {
+      return <DiaryEntry onNavigate={setCurrentPage} />;
+    }
+    if (currentPage === 'history') {
+      return <History onNavigate={setCurrentPage} />;
+    }
+    if (currentPage === 'consultations') {
+      return <PlaceholderPage title="我的咨询" icon={<MessageSquare size={48} />} onBack={() => setCurrentPage('profile')} />;
+    }
+    if (currentPage === 'appointments') {
+      return <PlaceholderPage title="专家预约" icon={<Calendar size={48} />} onBack={() => setCurrentPage('profile')} />;
+    }
+    if (currentPage === 'settings') {
+      return <PlaceholderPage title="设置" icon={<Settings size={48} />} onBack={() => setCurrentPage('profile')} />;
+    }
+    if (currentPage === 'about') {
+      return <PlaceholderPage title="关于应用" icon={<Info size={48} />} onBack={() => setCurrentPage('profile')} />;
+    }
+    if (currentPage === 'community_post_detail') {
+      return <PostDetail onNavigate={setCurrentPage} />;
+    }
+    if (currentPage === 'community_expert') {
+      return <ExpertColumn onNavigate={setCurrentPage} />;
+    }
+    return <CreatePost onNavigate={setCurrentPage} />;
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen bg-white shadow-2xl relative overflow-y-auto font-sans">
-      <AnimatePresence mode="wait" custom={direction}>
+    <div className="min-h-screen bg-slate-100 px-0 sm:px-6">
+      <div className={shellClassName}>
         <motion.div
-          key={currentPage}
-          custom={direction}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          variants={pageVariants}
-          className="min-h-screen"
-        >
-          {currentPage === 'home' && <Home onNavigate={setCurrentPage} />}
-          {currentPage === 'camera' && (
-            <CameraPage
-              videoRef={videoRef}
-              canvasRef={canvasRef}
-              fileInputRef={fileInputRef}
-              cameraReady={cameraReady}
-              cameraError={cameraError}
-              cameraLoading={cameraLoading}
-              startCamera={startCamera}
-              takePhoto={takePhoto}
-              onNavigate={setCurrentPage}
-              onFileSelect={handleFileSelect}
-            />
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_68%)]"
+          animate={immersivePage ? { opacity: 0.12, scale: 1.05 } : { opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        />
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 top-16 h-48 w-48 rounded-full bg-blue-400/10 blur-3xl"
+          animate={immersivePage ? { x: 12, opacity: 0.25 } : { x: 0, opacity: 0.8 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        />
+        {primaryTabs.map((page, index) => (
+          <motion.div
+            key={page}
+            initial={false}
+            animate={{
+              x: `${(index - activeRootTabIndex) * 100}%`,
+              opacity: 1,
+            }}
+            transition={{ duration: page === activeRootTab || page === getRootTab(currentPage) ? 0.6 : 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className={cn(
+              'absolute inset-0 min-h-screen transform-gpu will-change-transform',
+              activeRootTab === page && !overlayPageVisible ? 'pointer-events-auto z-10' : 'pointer-events-none z-0'
+            )}
+          >
+            {renderPrimaryTab(page)}
+          </motion.div>
+        ))}
+        <AnimatePresence mode={pagePresenceMode}>
+          {overlayPageVisible && (
+            <motion.div
+              key={currentPage}
+              initial={pageTransition.initial}
+              animate={pageTransition.animate}
+              exit={pageTransition.exit}
+              className="absolute inset-0 z-20 min-h-screen transform-gpu will-change-transform"
+            >
+              {renderOverlayPage()}
+            </motion.div>
           )}
-          {currentPage === 'analysis' && <Analysis capturedImage={capturedImage} />}
-          {currentPage === 'result' && (
-            <Result
-              analysisResult={analysisResult}
-              isSavingDiary={isSavingDiary}
-              onSaveRecord={handleSaveRecord}
-              onNavigate={setCurrentPage}
-            />
-          )}
-          {currentPage === 'records' && (
-            <RecordsPage
-              records={records}
-              onSelect={(r) => {
-                setSelectedRecord(r);
-                setCurrentPage('record_detail');
-              }}
-              onNavigate={setCurrentPage}
-            />
-          )}
-          {currentPage === 'record_detail' && (
-            <RecordDetailPage record={selectedRecord} onBack={() => setCurrentPage('records')} />
-          )}
-          {currentPage === 'diary' && (
-            <DiaryEntry onNavigate={setCurrentPage} />
-          )}
-          {currentPage === 'history' && (
-            <History onNavigate={setCurrentPage} />
-          )}
+        </AnimatePresence>
 
-          {currentPage === 'profile' && <ProfilePage onNavigate={setCurrentPage} />}
-          {currentPage === 'consultations' && (
-            <PlaceholderPage title="我的咨询" icon={<MessageSquare size={48} />} onBack={() => setCurrentPage('profile')} />
+        <AnimatePresence>
+          {isTabPage(currentPage) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }}
+              exit={{ opacity: 0, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
+            >
+              <BottomNav activePage={currentPage} onNavigate={setCurrentPage} />
+            </motion.div>
           )}
-          {currentPage === 'appointments' && (
-            <PlaceholderPage title="专家预约" icon={<Calendar size={48} />} onBack={() => setCurrentPage('profile')} />
-          )}
-          {currentPage === 'settings' && (
-            <PlaceholderPage title="设置" icon={<Settings size={48} />} onBack={() => setCurrentPage('profile')} />
-          )}
-          {currentPage === 'about' && (
-            <PlaceholderPage title="关于应用" icon={<Info size={48} />} onBack={() => setCurrentPage('profile')} />
-          )}
-          {currentPage === 'community' && <CommunityFeed onNavigate={setCurrentPage} />}
-          {currentPage === 'community_post_detail' && <PostDetail onNavigate={setCurrentPage} />}
-          {currentPage === 'community_expert' && <ExpertColumn onNavigate={setCurrentPage} />}
-          {currentPage === 'community_create' && <CreatePost onNavigate={setCurrentPage} />}
-        </motion.div>
-      </AnimatePresence>
-
-      {['home', 'records', 'profile', 'community', 'diary', 'history'].includes(currentPage) && (
-        <BottomNav activePage={currentPage} onNavigate={setCurrentPage} />
-      )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

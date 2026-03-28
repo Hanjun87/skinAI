@@ -1,8 +1,8 @@
-# SkinAI 项目架构文档
+# 知己肤 项目架构文档
 
 ## 1. 项目概览
 
-SkinAI 当前采用“前端应用 + Django 主后端 + Node 兼容层”的多服务架构：
+知己肤 当前采用"前端应用 + Django 主后端 + Node 兼容层"的多服务架构：
 
 - `apps/web`：用户端 React + Vite 应用
 - `services/django`：Django 主后端，负责后台管理、AI 配置、识别接口、识别记录与 PostgreSQL

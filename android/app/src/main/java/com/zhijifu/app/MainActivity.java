@@ -1,4 +1,4 @@
-package com.skinai.app;
+package com.zhijifu.app;
 
 import com.getcapacitor.BridgeActivity;
 

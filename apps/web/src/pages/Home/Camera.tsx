@@ -38,6 +38,11 @@ export default function Camera({
       </div>
       <div className="flex-grow relative overflow-hidden">
         <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+        <motion.div
+          className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.16),transparent_52%)]"
+          animate={{ opacity: [0.3, 0.55, 0.3] }}
+          transition={{ duration: 4.6, repeat: Infinity, ease: 'easeInOut' }}
+        />
         {!cameraReady && (
           <div className="absolute inset-0 bg-black/65 flex flex-col items-center justify-center px-8 text-center">
             <p className="text-white text-sm mb-4">{cameraError || (cameraLoading ? '正在开启摄像头...' : '请先开启摄像头权限')}</p>
@@ -55,6 +60,11 @@ export default function Camera({
             <motion.div animate={{ top: ['0%', '100%', '0%'] }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }} className="absolute left-0 right-0 h-0.5 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
           </div>
         </div>
+        <motion.div
+          className="pointer-events-none absolute bottom-12 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-blue-500/15 blur-3xl"
+          animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+        />
       </div>
       <div className="bg-white p-8 pb-12 rounded-t-[40px] flex flex-col items-center">
         <p className="text-gray-500 text-sm mb-8">请将镜头对准，并保持光线充足</p>

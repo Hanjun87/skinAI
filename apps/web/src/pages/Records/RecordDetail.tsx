@@ -95,7 +95,7 @@ export default function RecordDetail({
         </div>
         <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center text-center opacity-60">
           <AlertCircle size={32} className="text-gray-300 mb-2" />
-          <p className="text-[10px] text-gray-400 leading-relaxed">本报告由 SkinAI 智能分析系统生成，仅供健康参考。若症状持续或加重，请立即前往正规医院皮肤科就诊。</p>
+          <p className="text-[10px] text-gray-400 leading-relaxed">本报告由 知己肤 智能分析系统生成，仅供健康参考。若症状持续或加重，请立即前往正规医院皮肤科就诊。</p>
         </div>
       </div>
     </div>

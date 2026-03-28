@@ -1,29 +1,29 @@
-# SkinAI 项目架构文档
+# 知己肤 项目架构文档
 
 > 本文档供 AI 助手快速理解项目架构，以便更准确地协助开发。
 
 ## 项目概述
 
-SkinAI 是一个皮肤健康识别应用，用户可以拍摄皮肤照片，由 AI 分析并给出诊断建议。项目支持 Web 端和 Android 端。
+知己肤 是一个皮肤健康识别应用，用户可以拍摄皮肤照片，由 AI 分析并给出诊断建议。项目支持 Web 端和 Android 端。
 
 ## 技术栈
 
-| 类别 | 技术 |
-|------|------|
-| 前端框架 | React 19 + TypeScript |
-| 构建工具 | Vite 6 |
-| 样式 | TailwindCSS 4 |
-| 动画 | Motion (Framer Motion) |
-| 图标 | Lucide React |
-| 后端 | Node.js + Express |
-| 数据库 | PostgreSQL |
-| 移动端 | Capacitor (Android) |
-| 部署 | Vercel |
+| 类别     | 技术                   |
+| -------- | ---------------------- |
+| 前端框架 | React 19 + TypeScript  |
+| 构建工具 | Vite 6                 |
+| 样式     | TailwindCSS 4          |
+| 动画     | Motion (Framer Motion) |
+| 图标     | Lucide React           |
+| 后端     | Node.js + Express      |
+| 数据库   | PostgreSQL             |
+| 移动端   | Capacitor (Android)    |
+| 部署     | Vercel                 |
 
 ## 项目结构
 
 ```
-skinAI/
+zhijifu/
 ├── src/                    # 前端源码
 │   ├── App.tsx             # 主应用组件（单文件应用）
 │   ├── main.tsx            # 入口文件
@@ -115,45 +115,51 @@ skinAI/
 
 **核心函数：**
 
-| 函数 | 作用 |
-|------|------|
-| `createPoolFromEnv()` | 创建 PostgreSQL 连接池 |
-| `loadConfigFromDb()` | 从数据库加载 AI 配置 |
-| `saveConfigToDb()` | 保存 AI 配置到数据库 |
+| 函数                     | 作用                     |
+| ------------------------ | ------------------------ |
+| `createPoolFromEnv()`    | 创建 PostgreSQL 连接池   |
+| `loadConfigFromDb()`     | 从数据库加载 AI 配置     |
+| `saveConfigToDb()`       | 保存 AI 配置到数据库     |
 | `analyzeByExternalApi()` | 调用外部 AI API 分析图片 |
-| `normalizeOutput()` | 标准化 AI 返回结果 |
+| `normalizeOutput()`      | 标准化 AI 返回结果       |
 
 **AI 提供商适配：**
 
 ```javascript
 // 阿里云通义千问格式
 if (isAliyun) {
-    payload = {
-        model: 'qwen-vl-plus',
-        input: {
-            messages: [
-                { role: 'system', content: [{ type: 'text', text: systemPrompt }] },
-                { role: 'user', content: [
-                    { type: 'image', image: imageBase64 },
-                    { type: 'text', text: userContent }
-                ]}
-            ]
-        }
-    };
+  payload = {
+    model: "qwen-vl-plus",
+    input: {
+      messages: [
+        { role: "system", content: [{ type: "text", text: systemPrompt }] },
+        {
+          role: "user",
+          content: [
+            { type: "image", image: imageBase64 },
+            { type: "text", text: userContent },
+          ],
+        },
+      ],
+    },
+  };
 }
 
 // OpenAI/DeepSeek 格式
 else {
-    payload = {
-        model: 'gpt-4o',
-        messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: [
-                { type: 'text', text: userContent },
-                { type: 'image_url', image_url: { url: imageBase64 } }
-            ]}
-        ]
-    };
+  payload = {
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: userContent },
+          { type: "image_url", image_url: { url: imageBase64 } },
+        ],
+      },
+    ],
+  };
 }
 ```
 
@@ -162,33 +168,44 @@ else {
 **页面状态：**
 
 ```typescript
-type Page = 'home' | 'camera' | 'analysis' | 'result' | 'records' | 
-            'record_detail' | 'diary' | 'diary_detail' | 'profile' | 
-            'consultations' | 'appointments' | 'settings' | 'about';
+type Page =
+  | "home"
+  | "camera"
+  | "analysis"
+  | "result"
+  | "records"
+  | "record_detail"
+  | "diary"
+  | "diary_detail"
+  | "profile"
+  | "consultations"
+  | "appointments"
+  | "settings"
+  | "about";
 ```
 
 **核心状态：**
 
-| 状态 | 类型 | 作用 |
-|------|------|------|
-| `currentPage` | Page | 当前页面 |
-| `capturedImage` | string | 拍摄的图片 (Base64) |
-| `analysisResult` | AnalysisResult | 分析结果 |
-| `records` | Record[] | 历史记录 |
-| `isAnalyzing` | boolean | 是否正在分析 |
+| 状态             | 类型           | 作用                |
+| ---------------- | -------------- | ------------------- |
+| `currentPage`    | Page           | 当前页面            |
+| `capturedImage`  | string         | 拍摄的图片 (Base64) |
+| `analysisResult` | AnalysisResult | 分析结果            |
+| `records`        | Record[]       | 历史记录            |
+| `isAnalyzing`    | boolean        | 是否正在分析        |
 
 **API 调用：**
 
 ```typescript
 // 构建API URL
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const buildApiUrl = (path: string) => `${apiBaseUrl}${path}`;
 
 // 分析皮肤
-const response = await fetch(buildApiUrl('/api/analyze-skin'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64 })
+const response = await fetch(buildApiUrl("/api/analyze-skin"), {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ imageBase64 }),
 });
 ```
 
@@ -235,12 +252,12 @@ CREATE TABLE ai_admin_config (
 
 ```json
 {
-    "endpoint": "https://api.example.com",
-    "apiKey": "sk-xxx",
-    "model": "model-name",
-    "timeoutMs": 30000,
-    "systemPrompt": "系统提示词",
-    "userPromptTemplate": "用户提示词模板"
+  "endpoint": "https://api.example.com",
+  "apiKey": "sk-xxx",
+  "model": "model-name",
+  "timeoutMs": 30000,
+  "systemPrompt": "系统提示词",
+  "userPromptTemplate": "用户提示词模板"
 }
 ```
 
@@ -264,4 +281,4 @@ npm run android:sync        # 同步到 Android
 npm run android:build:debug # 构建 APK
 ```
 
-*只允许修改我说了的部分，其他没有说的地方不能修改
+\*只允许修改我说了的部分，其他没有说的地方不能修改

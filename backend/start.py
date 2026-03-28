@@ -33,7 +33,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     print('=' * 50)
-    print('SkinAI 服务启动器')
+    print('知己肤 服务启动器')
     print('=' * 50)
 
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
