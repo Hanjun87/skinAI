@@ -168,9 +168,9 @@ def normalize_skin_record_output(data):
 
     return {
         "photoQuality": {
-            "clarity": max(0, min(100, round(float(photo_quality.get("clarity", 85)))),
-            "lighting": max(0, min(100, round(float(photo_quality.get("lighting", 85)))),
-            "composition": max(0, min(100, round(float(photo_quality.get("composition", 85)))),
+            "clarity": max(0, min(100, round(float(photo_quality.get("clarity", 85))))),
+            "lighting": max(0, min(100, round(float(photo_quality.get("lighting", 85))))),
+            "composition": max(0, min(100, round(float(photo_quality.get("composition", 85))))),
         },
         "skinStatus": {
             "overall": str(skin_status.get("overall", "良好")),
